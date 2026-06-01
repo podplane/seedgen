@@ -1,0 +1,40 @@
+// Podplane <https://podplane.dev>
+// Copyright The Podplane Authors
+// SPDX-License-Identifier: Apache-2.0
+//
+// Default exclude rules for `seedgen`. These drop runtime/per-cluster records
+// that should not appear in a template snapshot. Exclude is applied after
+// include, so a record is kept iff include matches AND exclude does not.
+{
+  "keys": [
+    // apiserver health key
+    "/registry/health",
+    // recreated by the kube-controller-manager endpoints controller
+    "/registry/services/endpoints/default/kubernetes"
+  ],
+  "prefixes": [
+    // Kubernetes runtime / per-node noise
+    "/registry/events/",
+    "/registry/leases/",
+    "/registry/masterleases/",
+    "/registry/pods/",
+    "/registry/csinodes/",
+    "/registry/minions/",
+    "/registry/endpointslices/",
+    "/registry/services/endpoints/",
+    "/registry/replicasets/",
+    "/registry/controllerrevisions/",
+    // Generated TLS/private-key material
+    "/registry/secrets/platform-certs/platform-selfsigned-ca",
+    "/registry/secrets/platform-traefik/platform-traefik-default-",
+    "/registry/secrets/platform-trust-manager/platform-selfsigned-ca-certificate-secret",
+    // cert-manager runtime — re-issued from Certificates by the controller
+    "/registry/cert-manager.io/certificaterequests/",
+    "/registry/acme.cert-manager.io/orders/",
+    "/registry/acme.cert-manager.io/challenges/"
+  ],
+  "substrings": [
+    // kube-system root CA configmap published per-namespace by the apiserver
+    "/kube-root-ca.crt"
+  ]
+}
