@@ -7,6 +7,7 @@ package seedgen
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -217,6 +218,46 @@ func TestWriteSnapshotAppliesSeedTransforms(t *testing.T) {
 	}
 	if string(got[7].Value) != string(input[7].Value) {
 		t.Fatalf("unrelated resource value changed: %s", got[7].Value)
+	}
+}
+
+func TestWriteSnapshotFailsForNonJSONTransformTarget(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	err := WriteSnapshot(&buf, []*datafile.Record{
+		{
+			Revision: 1,
+			Key:      []byte("/registry/services/specs/default/kubernetes"),
+			Value:    []byte("k8s\x00protobuf"),
+		},
+	}, "seed")
+	if err == nil {
+		t.Fatalf("WriteSnapshot succeeded for non-JSON transform target")
+	}
+	if !strings.Contains(err.Error(), "decode /registry/services/specs/default/kubernetes as JSON") {
+		t.Fatalf("WriteSnapshot error = %v, want transform target decode error", err)
+	}
+}
+
+func TestWriteSnapshotAllowsNonJSONUntransformedValue(t *testing.T) {
+	t.Parallel()
+	input := []*datafile.Record{
+		{
+			Revision: 1,
+			Key:      []byte("/registry/secrets/default/not-transformed"),
+			Value:    []byte("not json"),
+		},
+	}
+	var buf bytes.Buffer
+	if err := WriteSnapshot(&buf, input, "seed"); err != nil {
+		t.Fatalf("WriteSnapshot: %v", err)
+	}
+	got, err := datafile.ReadSnapshot(&buf)
+	if err != nil {
+		t.Fatalf("ReadSnapshot: %v", err)
+	}
+	if string(got[0].Value) != string(input[0].Value) {
+		t.Fatalf("value = %q, want %q", got[0].Value, input[0].Value)
 	}
 }
 

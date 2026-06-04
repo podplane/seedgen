@@ -22,6 +22,10 @@ func WriteSnapshot(w io.Writer, records []*datafile.Record, leaderID string) err
 	out := make([]*datafile.Record, len(records))
 	for i, record := range records {
 		rev := int64(i + 1)
+		value, err := defaults.TransformValue(record.Key, record.Value)
+		if err != nil {
+			return err
+		}
 		out[i] = &datafile.Record{
 			Revision:       rev,
 			Key:            record.Key,
@@ -32,7 +36,7 @@ func WriteSnapshot(w io.Writer, records []*datafile.Record, leaderID string) err
 			Version:        1,
 			Lease:          0,
 			Dek:            0,
-			Value:          defaults.TransformValue(record.Key, record.Value),
+			Value:          value,
 			CreatedAt:      nil,
 			CompactedAt:    nil,
 			LeaderID:       leaderID,

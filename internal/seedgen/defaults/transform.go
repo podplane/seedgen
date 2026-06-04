@@ -5,14 +5,14 @@
 package defaults
 
 var transforms = []transform{
-	objectTransform{apiPrefix: "cert-manager.io/", kind: "Certificate", mutate: resetReadyCondition},
-	objectTransform{apiPrefix: "cert-manager.io/", kind: "Issuer", mutate: resetReadyCondition},
-	objectTransform{apiPrefix: "cert-manager.io/", kind: "ClusterIssuer", mutate: resetReadyCondition},
-	objectTransform{apiPrefix: "helm.toolkit.fluxcd.io/", kind: "HelmRelease", mutate: resetReadyCondition},
-	objectTransform{apiPrefix: "policy.cert-manager.io/", kind: "CertificateRequestPolicy", mutate: resetReadyCondition},
-	objectTransform{apiVersion: "apps/v1", kind: "Deployment", mutate: resetAvailableCondition},
-	objectTransform{apiVersion: "apps/v1", kind: "DaemonSet", mutate: resetDaemonSetAvailability},
-	objectTransform{apiVersion: "v1", kind: "Service", mutate: preferDualStackService},
+	prefixTransform{prefix: "/registry/cert-manager.io/certificates/", apiPrefix: "cert-manager.io/", kind: "Certificate", mutate: resetReadyCondition},
+	prefixTransform{prefix: "/registry/cert-manager.io/issuers/", apiPrefix: "cert-manager.io/", kind: "Issuer", mutate: resetReadyCondition},
+	prefixTransform{prefix: "/registry/cert-manager.io/clusterissuers/", apiPrefix: "cert-manager.io/", kind: "ClusterIssuer", mutate: resetReadyCondition},
+	prefixTransform{prefix: "/registry/helm.toolkit.fluxcd.io/helmreleases/", apiPrefix: "helm.toolkit.fluxcd.io/", kind: "HelmRelease", mutate: resetReadyCondition},
+	prefixTransform{prefix: "/registry/policy.cert-manager.io/certificaterequestpolicies/", apiPrefix: "policy.cert-manager.io/", kind: "CertificateRequestPolicy", mutate: resetReadyCondition},
+	prefixTransform{prefix: "/registry/deployments/", apiVersion: "apps/v1", kind: "Deployment", mutate: resetAvailableCondition},
+	prefixTransform{prefix: "/registry/daemonsets/", apiVersion: "apps/v1", kind: "DaemonSet", mutate: resetDaemonSetAvailability},
+	prefixTransform{prefix: "/registry/services/specs/", apiVersion: "v1", kind: "Service", mutate: preferDualStackService},
 	keyTransform{key: "/registry/services/specs/default/kubernetes", mutate: setServiceDualStack("198.18.0.1", "fdc6::1")},
 	keyTransform{key: "/registry/services/specs/platform-coredns/platform-coredns", mutate: setServiceDualStack("198.19.255.254", "fdc6::ffff")},
 }
