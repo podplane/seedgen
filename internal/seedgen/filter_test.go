@@ -8,17 +8,20 @@ import (
 	"testing"
 
 	"github.com/netsy-dev/netsy/pkg/datafile"
+	"github.com/podplane/seedgen/pkg/pipeline"
 )
 
+// TestFilterIncludeAndExclude verifies that filtering preserves included
+// records unless they also match an exclude rule.
 func TestFilterIncludeAndExclude(t *testing.T) {
 	t.Parallel()
-	include, err := LoadRulesBytes([]byte(`{
+	include, err := pipeline.LoadRulesBytes([]byte(`{
 		"prefixes": ["/registry/namespaces/", "/registry/secrets/"]
 	}`), "include")
 	if err != nil {
 		t.Fatalf("include: %v", err)
 	}
-	exclude, err := LoadRulesBytes([]byte(`{
+	exclude, err := pipeline.LoadRulesBytes([]byte(`{
 		"substrings": ["/sh.helm.release.v1."]
 	}`), "exclude")
 	if err != nil {

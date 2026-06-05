@@ -7,22 +7,24 @@ package defaults
 import (
 	"slices"
 
+	"github.com/podplane/seedgen/pkg/pipeline"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-var transforms = []transform{
-	prefixTransform{prefix: "/registry/cert-manager.io/certificates/", apiPrefix: "cert-manager.io/", kind: "Certificate", mutateJSON: resetReadyCondition},
-	prefixTransform{prefix: "/registry/cert-manager.io/issuers/", apiPrefix: "cert-manager.io/", kind: "Issuer", mutateJSON: resetReadyCondition},
-	prefixTransform{prefix: "/registry/cert-manager.io/clusterissuers/", apiPrefix: "cert-manager.io/", kind: "ClusterIssuer", mutateJSON: resetReadyCondition},
-	prefixTransform{prefix: "/registry/helm.toolkit.fluxcd.io/helmreleases/", apiPrefix: "helm.toolkit.fluxcd.io/", kind: "HelmRelease", mutateJSON: resetReadyCondition},
-	prefixTransform{prefix: "/registry/policy.cert-manager.io/certificaterequestpolicies/", apiPrefix: "policy.cert-manager.io/", kind: "CertificateRequestPolicy", mutateJSON: resetReadyCondition},
-	prefixTransform{prefix: "/registry/deployments/", apiVersion: "apps/v1", kind: "Deployment", mutateJSON: resetAvailableCondition, mutateProtobuf: resetDeploymentAvailableCondition},
-	prefixTransform{prefix: "/registry/daemonsets/", apiVersion: "apps/v1", kind: "DaemonSet", mutateJSON: resetDaemonSetAvailability, mutateProtobuf: resetTypedDaemonSetAvailability},
-	prefixTransform{prefix: "/registry/services/specs/", apiVersion: "v1", kind: "Service", mutateJSON: preferDualStackService, mutateProtobuf: preferDualStackServiceObject},
-	keyTransform{key: "/registry/services/specs/default/kubernetes", mutateJSON: setServiceDualStack("198.18.0.1", "fdc6::1"), mutateProtobuf: setServiceDualStackObject("198.18.0.1", "fdc6::1")},
-	keyTransform{key: "/registry/services/specs/platform-coredns/platform-coredns", mutateJSON: setServiceDualStack("198.19.255.254", "fdc6::ffff"), mutateProtobuf: setServiceDualStackObject("198.19.255.254", "fdc6::ffff")},
+// Transforms is the built-in Podplane seed transform table.
+var Transforms = pipeline.Transforms{
+	pipeline.PrefixTransform{Prefix: "/registry/cert-manager.io/certificates/", APIPrefix: "cert-manager.io/", Kind: "Certificate", MutateJSON: resetReadyCondition},
+	pipeline.PrefixTransform{Prefix: "/registry/cert-manager.io/issuers/", APIPrefix: "cert-manager.io/", Kind: "Issuer", MutateJSON: resetReadyCondition},
+	pipeline.PrefixTransform{Prefix: "/registry/cert-manager.io/clusterissuers/", APIPrefix: "cert-manager.io/", Kind: "ClusterIssuer", MutateJSON: resetReadyCondition},
+	pipeline.PrefixTransform{Prefix: "/registry/helm.toolkit.fluxcd.io/helmreleases/", APIPrefix: "helm.toolkit.fluxcd.io/", Kind: "HelmRelease", MutateJSON: resetReadyCondition},
+	pipeline.PrefixTransform{Prefix: "/registry/policy.cert-manager.io/certificaterequestpolicies/", APIPrefix: "policy.cert-manager.io/", Kind: "CertificateRequestPolicy", MutateJSON: resetReadyCondition},
+	pipeline.PrefixTransform{Prefix: "/registry/deployments/", APIVersion: "apps/v1", Kind: "Deployment", MutateJSON: resetAvailableCondition, MutateProtobuf: resetDeploymentAvailableCondition},
+	pipeline.PrefixTransform{Prefix: "/registry/daemonsets/", APIVersion: "apps/v1", Kind: "DaemonSet", MutateJSON: resetDaemonSetAvailability, MutateProtobuf: resetTypedDaemonSetAvailability},
+	pipeline.PrefixTransform{Prefix: "/registry/services/specs/", APIVersion: "v1", Kind: "Service", MutateJSON: preferDualStackService, MutateProtobuf: preferDualStackServiceObject},
+	pipeline.KeyTransform{Key: "/registry/services/specs/default/kubernetes", MutateJSON: setServiceDualStack("198.18.0.1", "fdc6::1"), MutateProtobuf: setServiceDualStackObject("198.18.0.1", "fdc6::1")},
+	pipeline.KeyTransform{Key: "/registry/services/specs/platform-coredns/platform-coredns", MutateJSON: setServiceDualStack("198.19.255.254", "fdc6::ffff"), MutateProtobuf: setServiceDualStackObject("198.19.255.254", "fdc6::ffff")},
 }
 
 // resetReadyCondition marks a True Ready condition as False in a JSON object.
@@ -130,7 +132,7 @@ func preferDualStackServiceObject(obj runtime.Object) bool {
 // cluster IPs are part of the seed template.
 func setServiceDualStack(ipv4, ipv6 string) func(map[string]any) bool {
 	return func(obj map[string]any) bool {
-		if obj["kind"] != "Service" || stringValue(obj["apiVersion"]) != "v1" {
+		if obj["kind"] != "Service" || obj["apiVersion"] != "v1" {
 			return false
 		}
 		spec, ok := obj["spec"].(map[string]any)

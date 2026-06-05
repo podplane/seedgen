@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/netsy-dev/netsy/pkg/datafile"
+	"github.com/podplane/seedgen/pkg/pipeline"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,7 +33,7 @@ func TestWriteSnapshotRenumbersAndNormalises(t *testing.T) {
 		{Revision: 99, Key: []byte("/c"), Value: []byte("vc"), Deleted: false, CreateRevision: 50, PrevRevision: 60, Version: 3, Lease: 0, Dek: 0, CreatedAt: &createdAt, LeaderID: "old-node"},
 	}
 	var buf bytes.Buffer
-	if err := WriteSnapshot(&buf, input, "seed"); err != nil {
+	if err := WriteSnapshot(&buf, input, WriteOptions{LeaderID: "seed"}); err != nil {
 		t.Fatalf("WriteSnapshot: %v", err)
 	}
 
@@ -178,7 +179,8 @@ func TestWriteSnapshotAppliesSeedTransforms(t *testing.T) {
 		},
 	}
 	var buf bytes.Buffer
-	if err := WriteSnapshot(&buf, input, "seed"); err != nil {
+	writeOpts := WriteOptions{LeaderID: "seed", Transforms: testTransforms()}
+	if err := WriteSnapshot(&buf, input, writeOpts); err != nil {
 		t.Fatalf("WriteSnapshot: %v", err)
 	}
 
@@ -284,7 +286,8 @@ func TestWriteSnapshotAppliesKubernetesProtobufSeedTransforms(t *testing.T) {
 		},
 	}
 	var buf bytes.Buffer
-	if err := WriteSnapshot(&buf, input, "seed"); err != nil {
+	writeOpts := WriteOptions{LeaderID: "seed", Transforms: testTransforms()}
+	if err := WriteSnapshot(&buf, input, writeOpts); err != nil {
 		t.Fatalf("WriteSnapshot: %v", err)
 	}
 	got, err := datafile.ReadSnapshot(&buf)
@@ -324,13 +327,14 @@ func TestWriteSnapshotAppliesKubernetesProtobufSeedTransforms(t *testing.T) {
 func TestWriteSnapshotFailsForInvalidKubernetesProtobufTransformTarget(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
+	writeOpts := WriteOptions{LeaderID: "seed", Transforms: testTransforms()}
 	err := WriteSnapshot(&buf, []*datafile.Record{
 		{
 			Revision: 1,
 			Key:      []byte("/registry/services/specs/default/kubernetes"),
 			Value:    []byte("k8s\x00protobuf"),
 		},
-	}, "seed")
+	}, writeOpts)
 	if err == nil {
 		t.Fatalf("WriteSnapshot succeeded for invalid Kubernetes protobuf transform target")
 	}
@@ -351,7 +355,7 @@ func TestWriteSnapshotAllowsNonJSONUntransformedValue(t *testing.T) {
 		},
 	}
 	var buf bytes.Buffer
-	if err := WriteSnapshot(&buf, input, "seed"); err != nil {
+	if err := WriteSnapshot(&buf, input, WriteOptions{LeaderID: "seed"}); err != nil {
 		t.Fatalf("WriteSnapshot: %v", err)
 	}
 	got, err := datafile.ReadSnapshot(&buf)
@@ -436,4 +440,86 @@ func testKubernetesCodecs(t *testing.T) serializer.CodecFactory {
 		t.Fatalf("register apps/v1 scheme: %v", err)
 	}
 	return serializer.NewCodecFactory(scheme)
+}
+
+// testTransforms returns the minimal transform table exercised by writer tests.
+func testTransforms() pipeline.Transforms {
+	setCondition := func(conditionType string) func(map[string]any) bool {
+		return func(obj map[string]any) bool {
+			status, ok := obj["status"].(map[string]any)
+			if !ok {
+				return false
+			}
+			conditions, ok := status["conditions"].([]any)
+			if !ok {
+				return false
+			}
+			var changed bool
+			for _, item := range conditions {
+				condition := item.(map[string]any)
+				if condition["type"] == conditionType && condition["status"] == "True" {
+					condition["status"] = "False"
+					changed = true
+				}
+			}
+			return changed
+		}
+	}
+	resetDaemonSet := func(obj map[string]any) bool {
+		status := obj["status"].(map[string]any)
+		status["numberReady"] = float64(0)
+		status["numberAvailable"] = float64(0)
+		return true
+	}
+	setService := func(ipv4, ipv6 string) func(map[string]any) bool {
+		return func(obj map[string]any) bool {
+			spec := obj["spec"].(map[string]any)
+			spec["ipFamilies"] = []string{"IPv4", "IPv6"}
+			spec["ipFamilyPolicy"] = "PreferDualStack"
+			if ipv4 != "" {
+				spec["clusterIP"] = ipv4
+				clusterIPs := []string{ipv4}
+				if ipv6 != "" {
+					clusterIPs = append(clusterIPs, ipv6)
+				}
+				spec["clusterIPs"] = clusterIPs
+			}
+			return true
+		}
+	}
+	preferService := setService("", "")
+	setTypedService := func(ipv4, ipv6 string) func(runtime.Object) bool {
+		return func(obj runtime.Object) bool {
+			service := obj.(*corev1.Service)
+			service.Spec.IPFamilies = []corev1.IPFamily{corev1.IPv4Protocol, corev1.IPv6Protocol}
+			policy := corev1.IPFamilyPolicyPreferDualStack
+			service.Spec.IPFamilyPolicy = &policy
+			if ipv4 != "" {
+				service.Spec.ClusterIP = ipv4
+				service.Spec.ClusterIPs = []string{ipv4}
+				if ipv6 != "" {
+					service.Spec.ClusterIPs = append(service.Spec.ClusterIPs, ipv6)
+				}
+			}
+			return true
+		}
+	}
+	return pipeline.Transforms{
+		pipeline.PrefixTransform{Prefix: "/registry/cert-manager.io/certificates/", APIPrefix: "cert-manager.io/", Kind: "Certificate", MutateJSON: setCondition("Ready")},
+		pipeline.PrefixTransform{Prefix: "/registry/helm.toolkit.fluxcd.io/helmreleases/", APIPrefix: "helm.toolkit.fluxcd.io/", Kind: "HelmRelease", MutateJSON: setCondition("Ready")},
+		pipeline.PrefixTransform{Prefix: "/registry/policy.cert-manager.io/certificaterequestpolicies/", APIPrefix: "policy.cert-manager.io/", Kind: "CertificateRequestPolicy", MutateJSON: setCondition("Ready")},
+		pipeline.PrefixTransform{Prefix: "/registry/deployments/", APIVersion: "apps/v1", Kind: "Deployment", MutateJSON: setCondition("Available"), MutateProtobuf: func(obj runtime.Object) bool {
+			deployment := obj.(*appsv1.Deployment)
+			deployment.Status.Conditions[0].Status = corev1.ConditionFalse
+			return true
+		}},
+		pipeline.PrefixTransform{Prefix: "/registry/daemonsets/", APIVersion: "apps/v1", Kind: "DaemonSet", MutateJSON: resetDaemonSet, MutateProtobuf: func(obj runtime.Object) bool {
+			daemonSet := obj.(*appsv1.DaemonSet)
+			daemonSet.Status.NumberReady = 0
+			daemonSet.Status.NumberAvailable = 0
+			return true
+		}},
+		pipeline.PrefixTransform{Prefix: "/registry/services/specs/", APIVersion: "v1", Kind: "Service", MutateJSON: preferService, MutateProtobuf: setTypedService("", "")},
+		pipeline.KeyTransform{Key: "/registry/services/specs/default/kubernetes", MutateJSON: setService("198.18.0.1", "fdc6::1"), MutateProtobuf: setTypedService("198.18.0.1", "fdc6::1")},
+	}
 }

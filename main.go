@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/podplane/seedgen/internal/cmd"
+	"github.com/podplane/seedgen/pkg/cmd"
 )
 
 func main() {

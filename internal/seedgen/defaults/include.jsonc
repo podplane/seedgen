@@ -6,9 +6,9 @@
 // its key matches one of these rules. The exclude rules are then applied to
 // drop unwanted matches.
 //
-// Starting set is intentionally small and prefix-heavy. Populate it by
-// running `seedgen --print-keys` against a freshly-bootstrapped local cluster
-// and curating the output.
+// Starting set is intentionally small and prefix-heavy. Populate it by running
+// seedgen against a freshly-bootstrapped local cluster and inspecting the
+// included.txt, excluded.txt, and ignored.txt key reports.
 {
   "keys": [],
   "prefixes": [

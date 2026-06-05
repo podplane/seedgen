@@ -35,8 +35,9 @@ seedgen --dry-run       [flags]                       # any of the above without
 seedgen --expect recommended --output recommended.netsy
 ```
 
-The kept keys are always printed to stderr as a summary; the snapshot itself
-is written to the file given by `--output`.
+The key counts are printed to stderr. The included, excluded, and ignored keys
+are written to the report files under `--logs`, and the snapshot itself is
+written to the file given by `--output`.
 
 | Flag          | Default     | Description                                                                                |
 | ------------- | ----------- | ------------------------------------------------------------------------------------------ |
@@ -44,10 +45,11 @@ is written to the file given by `--output`.
 | `--input`     | (unset)     | Directory containing `snapshots/` and `chunks/` (a Netsy bucket root on disk). Overrides `--cluster`. |
 | `--output`    | (required)  | Output `.netsy` file path. Required unless `--dry-run` is set.                             |
 | `--leader-id` | `seed`      | `LeaderID` stamped on the output snapshot.                                                 |
-| `--include`   | (embedded)  | Path to a JSONC include file overriding the embedded default.                              |
-| `--exclude`   | (embedded)  | Path to a JSONC exclude file overriding the embedded default.                              |
+| `--include`   | (embedded)  | Path to a JSONC include file overriding the pipeline default.                              |
+| `--exclude`   | (embedded)  | Path to a JSONC exclude file overriding the pipeline default.                              |
 | `--expect`    | `recommended` | Check for expected records based on the type of seed. Options: `recommended`, `minimal`, or `none`. |
-| `--dry-run`   | `false`     | Run the full pipeline and print kept keys but do not write the output file.                |
+| `--dry-run`   | `false`     | Run the full pipeline and write key reports but do not write the output file.              |
+| `--logs`      | `logs`      | Directory to write `included.txt`, `excluded.txt`, and `ignored.txt` key reports.          |
 
 The default `--expect recommended` guard is intended for published seed
 snapshots. The check runs after the current-state flattening and

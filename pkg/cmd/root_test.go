@@ -7,21 +7,24 @@ package cmd
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/netsy-dev/netsy/pkg/datafile"
-	"github.com/podplane/seedgen/internal/seedgen"
+	"github.com/podplane/seedgen/pkg/pipeline"
 )
 
+// TestClassifyKeys verifies that include and exclude rules partition keys into
+// the command's report groups.
 func TestClassifyKeys(t *testing.T) {
 	t.Parallel()
-	include, err := seedgen.LoadRulesBytes([]byte(`{
+	include, err := pipeline.LoadRulesBytes([]byte(`{
 		"prefixes": ["/registry/namespaces/", "/registry/secrets/"]
 	}`), "include")
 	if err != nil {
 		t.Fatalf("include: %v", err)
 	}
-	exclude, err := seedgen.LoadRulesBytes([]byte(`{
+	exclude, err := pipeline.LoadRulesBytes([]byte(`{
 		"substrings": ["/sh.helm.release.v1."]
 	}`), "exclude")
 	if err != nil {
@@ -37,17 +40,19 @@ func TestClassifyKeys(t *testing.T) {
 	if len(kept) != 1 || string(kept[0].Key) != "/registry/namespaces/default" {
 		t.Fatalf("kept = %#v, want namespace record", kept)
 	}
-	if diffStringSlices(includedKeys, []string{"/registry/namespaces/default"}) != "" {
+	if !slices.Equal(includedKeys, []string{"/registry/namespaces/default"}) {
 		t.Fatalf("includedKeys = %#v", includedKeys)
 	}
-	if diffStringSlices(excludedKeys, []string{"/registry/secrets/flux/sh.helm.release.v1.flux.v1"}) != "" {
+	if !slices.Equal(excludedKeys, []string{"/registry/secrets/flux/sh.helm.release.v1.flux.v1"}) {
 		t.Fatalf("excludedKeys = %#v", excludedKeys)
 	}
-	if diffStringSlices(ignoredKeys, []string{"/registry/events/default/foo"}) != "" {
+	if !slices.Equal(ignoredKeys, []string{"/registry/events/default/foo"}) {
 		t.Fatalf("ignoredKeys = %#v", ignoredKeys)
 	}
 }
 
+// TestWriteKeyReports verifies that the command writes one report file for
+// each key classification.
 func TestWriteKeyReports(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -67,16 +72,4 @@ func TestWriteKeyReports(t *testing.T) {
 			t.Fatalf("%s = %q, want %q", name, data, want)
 		}
 	}
-}
-
-func diffStringSlices(got, want []string) string {
-	if len(got) != len(want) {
-		return "different lengths"
-	}
-	for i := range got {
-		if got[i] != want[i] {
-			return "different values"
-		}
-	}
-	return ""
 }

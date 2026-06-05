@@ -4,11 +4,14 @@
 
 package seedgen
 
-import "github.com/netsy-dev/netsy/pkg/datafile"
+import (
+	"github.com/netsy-dev/netsy/pkg/datafile"
+	"github.com/podplane/seedgen/pkg/pipeline"
+)
 
 // Filter returns the subset of records whose keys match the include rules
 // and do not match the exclude rules. Input order is preserved.
-func Filter(records []*datafile.Record, include, exclude *Rules) []*datafile.Record {
+func Filter(records []*datafile.Record, include, exclude *pipeline.Rules) []*datafile.Record {
 	kept := make([]*datafile.Record, 0, len(records))
 	for _, record := range records {
 		key := string(record.Key)

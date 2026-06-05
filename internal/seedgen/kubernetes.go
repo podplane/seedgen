@@ -9,12 +9,11 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/podplane/seedgen/pkg/pipeline"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-
-	"github.com/podplane/seedgen/internal/seedgen/defaults"
 )
 
 var (
@@ -26,20 +25,20 @@ var (
 
 // transformValue applies seed transforms to either JSON or Kubernetes protobuf
 // record values.
-func transformValue(key, value []byte) ([]byte, error) {
+func transformValue(transforms pipeline.Transforms, key, value []byte) ([]byte, error) {
 	recordKey := string(key)
 	if bytes.HasPrefix(value, kubernetesProtobufPrefix) {
-		if !defaults.HasTransform(recordKey) {
+		if !transforms.HasTransform(recordKey) {
 			return value, nil
 		}
-		return transformKubernetesProtobufValue(recordKey, value)
+		return transformKubernetesProtobufValue(transforms, recordKey, value)
 	}
-	return defaults.TransformValue(key, value)
+	return transforms.TransformValue(key, value)
 }
 
 // transformKubernetesProtobufValue applies seed transforms to Kubernetes
 // protobuf storage values and preserves protobuf on output.
-func transformKubernetesProtobufValue(key string, value []byte) ([]byte, error) {
+func transformKubernetesProtobufValue(transforms pipeline.Transforms, key string, value []byte) ([]byte, error) {
 	codecs, err := getKubernetesCodecs()
 	if err != nil {
 		return nil, err
@@ -51,7 +50,7 @@ func transformKubernetesProtobufValue(key string, value []byte) ([]byte, error) 
 	if gvk != nil {
 		obj.GetObjectKind().SetGroupVersionKind(*gvk)
 	}
-	if !defaults.TransformObject(key, obj) {
+	if !transforms.TransformObject(key, obj) {
 		return value, nil
 	}
 	info, ok := runtime.SerializerInfoForMediaType(codecs.SupportedMediaTypes(), runtime.ContentTypeProtobuf)

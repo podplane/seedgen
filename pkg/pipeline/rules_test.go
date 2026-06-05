@@ -2,10 +2,11 @@
 // Copyright The Podplane Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package seedgen
+package pipeline
 
 import "testing"
 
+// TestRulesMatches verifies exact, prefix, and substring matching.
 func TestRulesMatches(t *testing.T) {
 	t.Parallel()
 	rules, err := LoadRulesBytes([]byte(`{
@@ -36,28 +37,11 @@ func TestRulesMatches(t *testing.T) {
 	}
 }
 
+// TestRulesMatchesNil verifies that a nil rule set matches nothing.
 func TestRulesMatchesNil(t *testing.T) {
 	t.Parallel()
 	var rules *Rules
 	if rules.Matches("/registry/foo") {
 		t.Fatal("nil Rules should never match")
-	}
-}
-
-func TestDefaultRulesParse(t *testing.T) {
-	t.Parallel()
-	include, err := DefaultIncludeRules()
-	if err != nil {
-		t.Fatalf("DefaultIncludeRules: %v", err)
-	}
-	if len(include.Prefixes) == 0 {
-		t.Fatal("default include rules should have prefixes")
-	}
-	exclude, err := DefaultExcludeRules()
-	if err != nil {
-		t.Fatalf("DefaultExcludeRules: %v", err)
-	}
-	if len(exclude.Prefixes) == 0 {
-		t.Fatal("default exclude rules should have prefixes")
 	}
 }

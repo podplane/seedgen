@@ -2,10 +2,9 @@
 // Copyright The Podplane Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package seedgen
+package pipeline
 
 import (
-	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -13,12 +12,6 @@ import (
 
 	"github.com/tidwall/jsonc"
 )
-
-//go:embed defaults/include.jsonc
-var defaultIncludeJSONC []byte
-
-//go:embed defaults/exclude.jsonc
-var defaultExcludeJSONC []byte
 
 // Rules captures one side of the filter (include or exclude). A record
 // matches the rule set if its key matches any entry in Keys, Prefixes,
@@ -29,16 +22,6 @@ type Rules struct {
 	Substrings []string `json:"substrings"`
 
 	keySet map[string]struct{}
-}
-
-// DefaultIncludeRules returns the embedded default include rules.
-func DefaultIncludeRules() (*Rules, error) {
-	return LoadRulesBytes(defaultIncludeJSONC, "<embedded include.jsonc>")
-}
-
-// DefaultExcludeRules returns the embedded default exclude rules.
-func DefaultExcludeRules() (*Rules, error) {
-	return LoadRulesBytes(defaultExcludeJSONC, "<embedded exclude.jsonc>")
 }
 
 // LoadRulesFile reads and parses a JSONC rules file from disk.
