@@ -9,8 +9,6 @@ import (
 	"io"
 
 	"github.com/netsy-dev/netsy/pkg/datafile"
-
-	"github.com/podplane/seedgen/internal/seedgen/defaults"
 )
 
 // WriteSnapshot normalises and renumbers records to look freshly created
@@ -22,7 +20,7 @@ func WriteSnapshot(w io.Writer, records []*datafile.Record, leaderID string) err
 	out := make([]*datafile.Record, len(records))
 	for i, record := range records {
 		rev := int64(i + 1)
-		value, err := defaults.TransformValue(record.Key, record.Value)
+		value, err := transformValue(record.Key, record.Value)
 		if err != nil {
 			return err
 		}

@@ -7,13 +7,22 @@ package seedgen
 import (
 	"bytes"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/netsy-dev/netsy/pkg/datafile"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 )
 
+// TestWriteSnapshotRenumbersAndNormalises verifies output records are rewritten
+// as fresh contiguous seed records.
 func TestWriteSnapshotRenumbersAndNormalises(t *testing.T) {
 	t.Parallel()
 	createdAt := time.Now()
@@ -77,6 +86,8 @@ func TestWriteSnapshotRenumbersAndNormalises(t *testing.T) {
 	}
 }
 
+// TestWriteSnapshotAppliesSeedTransforms verifies JSON seed transforms for
+// status reset and service dual-stack defaults.
 func TestWriteSnapshotAppliesSeedTransforms(t *testing.T) {
 	t.Parallel()
 	input := []*datafile.Record{
@@ -221,7 +232,96 @@ func TestWriteSnapshotAppliesSeedTransforms(t *testing.T) {
 	}
 }
 
-func TestWriteSnapshotFailsForNonJSONTransformTarget(t *testing.T) {
+// TestWriteSnapshotAppliesKubernetesProtobufSeedTransforms verifies equivalent
+// seed transforms for Kubernetes protobuf storage values.
+func TestWriteSnapshotAppliesKubernetesProtobufSeedTransforms(t *testing.T) {
+	t.Parallel()
+	singleStack := corev1.IPFamilyPolicySingleStack
+	input := []*datafile.Record{
+		{
+			Revision: 1,
+			Key:      []byte("/registry/deployments/platform-trust-manager/platform-trust-manager"),
+			Value: kubernetesProtobufValue(t, &appsv1.Deployment{
+				TypeMeta: metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
+				Status: appsv1.DeploymentStatus{Conditions: []appsv1.DeploymentCondition{
+					{Type: appsv1.DeploymentAvailable, Status: corev1.ConditionTrue},
+				}},
+			}, appsv1.SchemeGroupVersion),
+		},
+		{
+			Revision: 2,
+			Key:      []byte("/registry/daemonsets/platform-traefik/platform-traefik"),
+			Value: kubernetesProtobufValue(t, &appsv1.DaemonSet{
+				TypeMeta: metav1.TypeMeta{APIVersion: "apps/v1", Kind: "DaemonSet"},
+				Status:   appsv1.DaemonSetStatus{NumberReady: 1, NumberAvailable: 1},
+			}, appsv1.SchemeGroupVersion),
+		},
+		{
+			Revision: 3,
+			Key:      []byte("/registry/services/specs/default/kubernetes"),
+			Value: kubernetesProtobufValue(t, &corev1.Service{
+				TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Service"},
+				Spec: corev1.ServiceSpec{
+					ClusterIP:      "198.18.0.1",
+					ClusterIPs:     []string{"198.18.0.1"},
+					IPFamilies:     []corev1.IPFamily{corev1.IPv4Protocol},
+					IPFamilyPolicy: &singleStack,
+				},
+			}, corev1.SchemeGroupVersion),
+		},
+		{
+			Revision: 4,
+			Key:      []byte("/registry/services/specs/platform-cert-manager/platform-cert-manager"),
+			Value: kubernetesProtobufValue(t, &corev1.Service{
+				TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Service"},
+				Spec: corev1.ServiceSpec{
+					ClusterIP:      "198.18.10.10",
+					ClusterIPs:     []string{"198.18.10.10"},
+					IPFamilies:     []corev1.IPFamily{corev1.IPv4Protocol},
+					IPFamilyPolicy: &singleStack,
+				},
+			}, corev1.SchemeGroupVersion),
+		},
+	}
+	var buf bytes.Buffer
+	if err := WriteSnapshot(&buf, input, "seed"); err != nil {
+		t.Fatalf("WriteSnapshot: %v", err)
+	}
+	got, err := datafile.ReadSnapshot(&buf)
+	if err != nil {
+		t.Fatalf("ReadSnapshot: %v", err)
+	}
+	var deployment appsv1.Deployment
+	decodeKubernetesProtobufValue(t, got[0].Value, &deployment)
+	if deployment.Status.Conditions[0].Status != corev1.ConditionFalse {
+		t.Fatalf("Deployment Available status = %s, want False", deployment.Status.Conditions[0].Status)
+	}
+	var daemonSet appsv1.DaemonSet
+	decodeKubernetesProtobufValue(t, got[1].Value, &daemonSet)
+	if daemonSet.Status.NumberReady != 0 || daemonSet.Status.NumberAvailable != 0 {
+		t.Fatalf("DaemonSet status = %#v, want ready/available counters zero", daemonSet.Status)
+	}
+	var service corev1.Service
+	decodeKubernetesProtobufValue(t, got[2].Value, &service)
+	if service.Spec.IPFamilyPolicy == nil || *service.Spec.IPFamilyPolicy != corev1.IPFamilyPolicyPreferDualStack {
+		t.Fatalf("Service ipFamilyPolicy = %v, want PreferDualStack", service.Spec.IPFamilyPolicy)
+	}
+	if !slices.Equal(service.Spec.ClusterIPs, []string{"198.18.0.1", "fdc6::1"}) {
+		t.Fatalf("Service clusterIPs = %#v, want IPv4 and IPv6", service.Spec.ClusterIPs)
+	}
+	var genericService corev1.Service
+	decodeKubernetesProtobufValue(t, got[3].Value, &genericService)
+	if genericService.Spec.IPFamilyPolicy == nil || *genericService.Spec.IPFamilyPolicy != corev1.IPFamilyPolicyPreferDualStack {
+		t.Fatalf("Generic Service ipFamilyPolicy = %v, want PreferDualStack", genericService.Spec.IPFamilyPolicy)
+	}
+	if !slices.Equal(genericService.Spec.ClusterIPs, []string{"198.18.10.10"}) {
+		t.Fatalf("Generic Service clusterIPs = %#v, want original cluster IP only", genericService.Spec.ClusterIPs)
+	}
+}
+
+// TestWriteSnapshotFailsForInvalidKubernetesProtobufTransformTarget verifies
+// protobuf decode failures are reported for transform targets.
+func TestWriteSnapshotFailsForInvalidKubernetesProtobufTransformTarget(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
 	err := WriteSnapshot(&buf, []*datafile.Record{
@@ -232,13 +332,15 @@ func TestWriteSnapshotFailsForNonJSONTransformTarget(t *testing.T) {
 		},
 	}, "seed")
 	if err == nil {
-		t.Fatalf("WriteSnapshot succeeded for non-JSON transform target")
+		t.Fatalf("WriteSnapshot succeeded for invalid Kubernetes protobuf transform target")
 	}
-	if !strings.Contains(err.Error(), "decode /registry/services/specs/default/kubernetes as JSON") {
-		t.Fatalf("WriteSnapshot error = %v, want transform target decode error", err)
+	if !strings.Contains(err.Error(), "decode /registry/services/specs/default/kubernetes as Kubernetes protobuf") {
+		t.Fatalf("WriteSnapshot error = %v, want Kubernetes protobuf decode error", err)
 	}
 }
 
+// TestWriteSnapshotAllowsNonJSONUntransformedValue verifies unrelated binary or
+// textual values pass through unchanged.
 func TestWriteSnapshotAllowsNonJSONUntransformedValue(t *testing.T) {
 	t.Parallel()
 	input := []*datafile.Record{
@@ -261,6 +363,7 @@ func TestWriteSnapshotAllowsNonJSONUntransformedValue(t *testing.T) {
 	}
 }
 
+// conditionStatus returns the status for a named condition in a JSON object.
 func conditionStatus(t *testing.T, value []byte, conditionType string) string {
 	t.Helper()
 	var obj map[string]any
@@ -277,6 +380,7 @@ func conditionStatus(t *testing.T, value []byte, conditionType string) string {
 	return ""
 }
 
+// decodeValue decodes a JSON record value into dst for test assertions.
 func decodeValue(t *testing.T, value []byte, dst any) {
 	t.Helper()
 	if err := json.Unmarshal(value, dst); err != nil {
@@ -284,6 +388,7 @@ func decodeValue(t *testing.T, value []byte, dst any) {
 	}
 }
 
+// mustJSON marshals a test fixture to JSON or fails the test.
 func mustJSON(t *testing.T, value any) []byte {
 	t.Helper()
 	data, err := json.Marshal(value)
@@ -291,4 +396,44 @@ func mustJSON(t *testing.T, value any) []byte {
 		t.Fatalf("marshal fixture: %v", err)
 	}
 	return data
+}
+
+// kubernetesProtobufValue encodes a typed Kubernetes object as a protobuf
+// fixture using the same serializer family used by Kubernetes storage.
+func kubernetesProtobufValue(t *testing.T, obj runtime.Object, gv schema.GroupVersion) []byte {
+	t.Helper()
+	codecs := testKubernetesCodecs(t)
+	info, ok := runtime.SerializerInfoForMediaType(codecs.SupportedMediaTypes(), runtime.ContentTypeProtobuf)
+	if !ok {
+		t.Fatalf("Kubernetes protobuf serializer is unavailable")
+	}
+	data, err := runtime.Encode(codecs.EncoderForVersion(info.Serializer, gv), obj)
+	if err != nil {
+		t.Fatalf("encode Kubernetes protobuf fixture: %v", err)
+	}
+	return data
+}
+
+// decodeKubernetesProtobufValue decodes a Kubernetes protobuf record value into
+// the provided typed object for test assertions.
+func decodeKubernetesProtobufValue(t *testing.T, value []byte, into runtime.Object) {
+	t.Helper()
+	codecs := testKubernetesCodecs(t)
+	if _, _, err := codecs.UniversalDeserializer().Decode(value, nil, into); err != nil {
+		t.Fatalf("decode Kubernetes protobuf value: %v", err)
+	}
+}
+
+// testKubernetesCodecs returns a test-local scheme with the built-in API groups
+// covered by seed transforms.
+func testKubernetesCodecs(t *testing.T) serializer.CodecFactory {
+	t.Helper()
+	scheme := runtime.NewScheme()
+	if err := corev1.AddToScheme(scheme); err != nil {
+		t.Fatalf("register core/v1 scheme: %v", err)
+	}
+	if err := appsv1.AddToScheme(scheme); err != nil {
+		t.Fatalf("register apps/v1 scheme: %v", err)
+	}
+	return serializer.NewCodecFactory(scheme)
 }
