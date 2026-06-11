@@ -14,8 +14,9 @@ import (
 
 // WriteOptions configures seed snapshot output.
 type WriteOptions struct {
-	LeaderID   string
-	Transforms pipeline.Transforms
+	LeaderID         string
+	Transforms       pipeline.Transforms
+	VerifyComponents string
 }
 
 // WriteSnapshot normalises and renumbers records to look freshly created
@@ -24,12 +25,19 @@ type WriteOptions struct {
 // a Netsy snapshot file. The renumbering is required for Netsy's bootstrap
 // integrity check, which enforces COUNT(records) == MAX(revision).
 func WriteSnapshot(w io.Writer, records []*datafile.Record, opts WriteOptions) error {
+	verifier, err := newComponentsVerifier(opts.VerifyComponents)
+	if err != nil {
+		return err
+	}
 	out := make([]*datafile.Record, len(records))
 	for i, record := range records {
 		rev := int64(i + 1)
 		value, err := transformValue(opts.Transforms, record.Key, record.Value)
 		if err != nil {
 			return err
+		}
+		if verifier != nil {
+			verifier.Check(record.Key, value)
 		}
 		out[i] = &datafile.Record{
 			Revision:       rev,
@@ -46,6 +54,11 @@ func WriteSnapshot(w io.Writer, records []*datafile.Record, opts WriteOptions) e
 			CompactedAt:    nil,
 			LeaderID:       opts.LeaderID,
 			ReplicatedAt:   nil,
+		}
+	}
+	if verifier != nil {
+		if err := verifier.Err(); err != nil {
+			return err
 		}
 	}
 	if err := datafile.WriteSnapshot(w, out, opts.LeaderID); err != nil {

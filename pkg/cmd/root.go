@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -27,6 +28,7 @@ type options struct {
 	excludeFile string
 	expect      string
 	logs        string
+	verify      string
 	dryRun      bool
 }
 
@@ -63,6 +65,7 @@ suitable for use as a Podplane seed.`,
 	cmd.Flags().StringVar(&opts.excludeFile, "exclude", "", "Path to a JSONC exclude file overriding the pipeline default")
 	cmd.Flags().StringVar(&opts.expect, "expect", "recommended", "Check for expected records based on the type of seed. Options: recommended (default), minimal, or none")
 	cmd.Flags().StringVar(&opts.logs, "logs", "logs", "Directory to write included.txt, excluded.txt, and ignored.txt key logs")
+	cmd.Flags().StringVar(&opts.verify, "verify-components", "", "Path to components.json manifest; fail if emitted seed images are absent from it")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Run the full pipeline and write key logs but do not write the output file")
 	return cmd
 }
@@ -100,6 +103,12 @@ func run(cmd *cobra.Command, opts options, activePipeline pipeline.Pipeline) err
 	fmt.Fprintf(os.Stderr, "%d total read\nwrote to %s:\n- %d included\n- %d excluded\n- %d ignored\n", len(records), opts.logs, len(includedKeys), len(excludedKeys), len(ignoredKeys))
 
 	if opts.dryRun {
+		if opts.verify != "" {
+			writeOpts := seedgen.WriteOptions{LeaderID: opts.leaderID, Transforms: activePipeline.Transforms, VerifyComponents: opts.verify}
+			if err := seedgen.WriteSnapshot(io.Discard, kept, writeOpts); err != nil {
+				return err
+			}
+		}
 		fmt.Fprintln(os.Stderr, "dry run: skipping snapshot write")
 		return nil
 	}
@@ -109,7 +118,7 @@ func run(cmd *cobra.Command, opts options, activePipeline pipeline.Pipeline) err
 		return fmt.Errorf("create output %s: %w", opts.output, err)
 	}
 	defer f.Close()
-	writeOpts := seedgen.WriteOptions{LeaderID: opts.leaderID, Transforms: activePipeline.Transforms}
+	writeOpts := seedgen.WriteOptions{LeaderID: opts.leaderID, Transforms: activePipeline.Transforms, VerifyComponents: opts.verify}
 	if err := seedgen.WriteSnapshot(f, kept, writeOpts); err != nil {
 		return err
 	}

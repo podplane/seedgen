@@ -33,23 +33,25 @@ seedgen --cluster <id>  --output <file> [flags]
 seedgen --input <dir>   --output <file> [flags]
 seedgen --dry-run       [flags]                       # any of the above without writing
 seedgen --expect recommended --output recommended.netsy
+seedgen --verify-components components.json --output recommended.netsy
 ```
 
 The key counts are printed to stderr. The included, excluded, and ignored keys
 are written to the report files under `--logs`, and the snapshot itself is
 written to the file given by `--output`.
 
-| Flag          | Default     | Description                                                                                |
-| ------------- | ----------- | ------------------------------------------------------------------------------------------ |
-| `--cluster`   | `default`   | Local Podplane cluster id; shortcut for `~/.podplane/data/s3/buckets/<id>-netsy`.          |
-| `--input`     | (unset)     | Directory containing `snapshots/` and `chunks/` (a Netsy bucket root on disk). Overrides `--cluster`. |
-| `--output`    | (required)  | Output `.netsy` file path. Required unless `--dry-run` is set.                             |
-| `--leader-id` | `seed`      | `LeaderID` stamped on the output snapshot.                                                 |
-| `--include`   | (embedded)  | Path to a JSONC include file overriding the pipeline default.                              |
-| `--exclude`   | (embedded)  | Path to a JSONC exclude file overriding the pipeline default.                              |
-| `--expect`    | `recommended` | Check for expected records based on the type of seed. Options: `recommended`, `minimal`, or `none`. |
-| `--dry-run`   | `false`     | Run the full pipeline and write key reports but do not write the output file.              |
-| `--logs`      | `logs`      | Directory to write `included.txt`, `excluded.txt`, and `ignored.txt` key reports.          |
+| Flag                    | Default       | Description                                                                                           |
+| ----------------------- | ------------- | ----------------------------------------------------------------------------------------------------- |
+| `--cluster`             | `default`     | Local Podplane cluster id; shortcut for `~/.podplane/data/s3/buckets/<id>-netsy`.                     |
+| `--input`               | (unset)       | Directory containing `snapshots/` and `chunks/` (a Netsy bucket root on disk). Overrides `--cluster`. |
+| `--output`              | (required)    | Output `.netsy` file path. Required unless `--dry-run` is set.                                        |
+| `--leader-id`           | `seed`        | `LeaderID` stamped on the output snapshot.                                                            |
+| `--include`             | (embedded)    | Path to a JSONC include file overriding the pipeline default.                                         |
+| `--exclude`             | (embedded)    | Path to a JSONC exclude file overriding the pipeline default.                                         |
+| `--expect`              | `recommended` | Check for expected records based on the type of seed. Options: `recommended`, `minimal`, or `none`.   |
+| `--verify-components`   | (unset)       | Path to a components manifest; fail if any emitted seed image is absent from it.                      |
+| `--dry-run`             | `false`       | Run the full pipeline and write key reports but do not write the output file.                         |
+| `--logs`                | `logs`        | Directory to write `included.txt`, `excluded.txt`, and `ignored.txt` key reports.                     |
 
 The default `--expect recommended` guard is intended for published seed
 snapshots. The check runs after the current-state flattening and
