@@ -234,9 +234,9 @@ func TestWriteSnapshotAppliesSeedTransforms(t *testing.T) {
 	}
 }
 
-// TestWriteSnapshotAppliesKubernetesProtobufSeedTransforms verifies equivalent
-// seed transforms for Kubernetes protobuf storage values.
-func TestWriteSnapshotAppliesKubernetesProtobufSeedTransforms(t *testing.T) {
+// TestWriteSnapshotEmitsJSONForKubernetesProtobufSeedTransforms verifies that
+// protobuf storage values are transformed and emitted as JSON.
+func TestWriteSnapshotEmitsJSONForKubernetesProtobufSeedTransforms(t *testing.T) {
 	t.Parallel()
 	singleStack := corev1.IPFamilyPolicySingleStack
 	input := []*datafile.Record{
@@ -295,17 +295,20 @@ func TestWriteSnapshotAppliesKubernetesProtobufSeedTransforms(t *testing.T) {
 		t.Fatalf("ReadSnapshot: %v", err)
 	}
 	var deployment appsv1.Deployment
-	decodeKubernetesProtobufValue(t, got[0].Value, &deployment)
+	decodeValue(t, got[0].Value, &deployment)
+	if bytes.HasPrefix(got[0].Value, kubernetesProtobufPrefix) {
+		t.Fatalf("Deployment value remained Kubernetes protobuf, want JSON")
+	}
 	if deployment.Status.Conditions[0].Status != corev1.ConditionFalse {
 		t.Fatalf("Deployment Available status = %s, want False", deployment.Status.Conditions[0].Status)
 	}
 	var daemonSet appsv1.DaemonSet
-	decodeKubernetesProtobufValue(t, got[1].Value, &daemonSet)
+	decodeValue(t, got[1].Value, &daemonSet)
 	if daemonSet.Status.NumberReady != 0 || daemonSet.Status.NumberAvailable != 0 {
 		t.Fatalf("DaemonSet status = %#v, want ready/available counters zero", daemonSet.Status)
 	}
 	var service corev1.Service
-	decodeKubernetesProtobufValue(t, got[2].Value, &service)
+	decodeValue(t, got[2].Value, &service)
 	if service.Spec.IPFamilyPolicy == nil || *service.Spec.IPFamilyPolicy != corev1.IPFamilyPolicyPreferDualStack {
 		t.Fatalf("Service ipFamilyPolicy = %v, want PreferDualStack", service.Spec.IPFamilyPolicy)
 	}
@@ -313,7 +316,7 @@ func TestWriteSnapshotAppliesKubernetesProtobufSeedTransforms(t *testing.T) {
 		t.Fatalf("Service clusterIPs = %#v, want IPv4 and IPv6", service.Spec.ClusterIPs)
 	}
 	var genericService corev1.Service
-	decodeKubernetesProtobufValue(t, got[3].Value, &genericService)
+	decodeValue(t, got[3].Value, &genericService)
 	if genericService.Spec.IPFamilyPolicy == nil || *genericService.Spec.IPFamilyPolicy != corev1.IPFamilyPolicyPreferDualStack {
 		t.Fatalf("Generic Service ipFamilyPolicy = %v, want PreferDualStack", genericService.Spec.IPFamilyPolicy)
 	}

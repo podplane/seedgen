@@ -28,16 +28,13 @@ var (
 func transformValue(transforms pipeline.Transforms, key, value []byte) ([]byte, error) {
 	recordKey := string(key)
 	if bytes.HasPrefix(value, kubernetesProtobufPrefix) {
-		if !transforms.HasTransform(recordKey) {
-			return value, nil
-		}
 		return transformKubernetesProtobufValue(transforms, recordKey, value)
 	}
 	return transforms.TransformValue(key, value)
 }
 
 // transformKubernetesProtobufValue applies seed transforms to Kubernetes
-// protobuf storage values and preserves protobuf on output.
+// protobuf storage values and emits decoded Kubernetes objects as JSON.
 func transformKubernetesProtobufValue(transforms pipeline.Transforms, key string, value []byte) ([]byte, error) {
 	codecs, err := getKubernetesCodecs()
 	if err != nil {
@@ -45,17 +42,18 @@ func transformKubernetesProtobufValue(transforms pipeline.Transforms, key string
 	}
 	obj, gvk, err := codecs.UniversalDeserializer().Decode(value, nil, nil)
 	if err != nil {
+		if !transforms.HasTransform(key) {
+			return value, nil
+		}
 		return nil, fmt.Errorf("decode %s as Kubernetes protobuf: %w", key, err)
 	}
 	if gvk != nil {
 		obj.GetObjectKind().SetGroupVersionKind(*gvk)
 	}
-	if !transforms.TransformObject(key, obj) {
-		return value, nil
-	}
-	info, ok := runtime.SerializerInfoForMediaType(codecs.SupportedMediaTypes(), runtime.ContentTypeProtobuf)
+	transforms.TransformObject(key, obj)
+	info, ok := runtime.SerializerInfoForMediaType(codecs.SupportedMediaTypes(), runtime.ContentTypeJSON)
 	if !ok {
-		return nil, fmt.Errorf("Kubernetes protobuf serializer is unavailable")
+		return nil, fmt.Errorf("Kubernetes JSON serializer is unavailable")
 	}
 	gv := obj.GetObjectKind().GroupVersionKind().GroupVersion()
 	if gvk != nil {
@@ -63,7 +61,7 @@ func transformKubernetesProtobufValue(transforms pipeline.Transforms, key string
 	}
 	encoded, err := runtime.Encode(codecs.EncoderForVersion(info.Serializer, gv), obj)
 	if err != nil {
-		return nil, fmt.Errorf("encode transformed value for %s as Kubernetes protobuf: %w", key, err)
+		return nil, fmt.Errorf("encode transformed value for %s as Kubernetes JSON: %w", key, err)
 	}
 	return encoded, nil
 }
