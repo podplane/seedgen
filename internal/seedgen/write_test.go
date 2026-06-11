@@ -508,21 +508,21 @@ func testTransforms() pipeline.Transforms {
 		}
 	}
 	return pipeline.Transforms{
-		pipeline.PrefixTransform{Prefix: "/registry/cert-manager.io/certificates/", APIPrefix: "cert-manager.io/", Kind: "Certificate", MutateJSON: setCondition("Ready")},
-		pipeline.PrefixTransform{Prefix: "/registry/helm.toolkit.fluxcd.io/helmreleases/", APIPrefix: "helm.toolkit.fluxcd.io/", Kind: "HelmRelease", MutateJSON: setCondition("Ready")},
-		pipeline.PrefixTransform{Prefix: "/registry/policy.cert-manager.io/certificaterequestpolicies/", APIPrefix: "policy.cert-manager.io/", Kind: "CertificateRequestPolicy", MutateJSON: setCondition("Ready")},
-		pipeline.PrefixTransform{Prefix: "/registry/deployments/", APIVersion: "apps/v1", Kind: "Deployment", MutateJSON: setCondition("Available"), MutateProtobuf: func(obj runtime.Object) bool {
+		pipeline.PrefixTransform{Prefix: "/registry/cert-manager.io/certificates/", APIPrefix: "cert-manager.io/", Kind: "Certificate", JSONTransforms: []pipeline.JSONTransform{setCondition("Ready")}},
+		pipeline.PrefixTransform{Prefix: "/registry/helm.toolkit.fluxcd.io/helmreleases/", APIPrefix: "helm.toolkit.fluxcd.io/", Kind: "HelmRelease", JSONTransforms: []pipeline.JSONTransform{setCondition("Ready")}},
+		pipeline.PrefixTransform{Prefix: "/registry/policy.cert-manager.io/certificaterequestpolicies/", APIPrefix: "policy.cert-manager.io/", Kind: "CertificateRequestPolicy", JSONTransforms: []pipeline.JSONTransform{setCondition("Ready")}},
+		pipeline.PrefixTransform{Prefix: "/registry/deployments/", APIVersion: "apps/v1", Kind: "Deployment", JSONTransforms: []pipeline.JSONTransform{setCondition("Available")}, ProtobufTransforms: []pipeline.ProtobufTransform{func(obj runtime.Object) bool {
 			deployment := obj.(*appsv1.Deployment)
 			deployment.Status.Conditions[0].Status = corev1.ConditionFalse
 			return true
-		}},
-		pipeline.PrefixTransform{Prefix: "/registry/daemonsets/", APIVersion: "apps/v1", Kind: "DaemonSet", MutateJSON: resetDaemonSet, MutateProtobuf: func(obj runtime.Object) bool {
+		}}},
+		pipeline.PrefixTransform{Prefix: "/registry/daemonsets/", APIVersion: "apps/v1", Kind: "DaemonSet", JSONTransforms: []pipeline.JSONTransform{resetDaemonSet}, ProtobufTransforms: []pipeline.ProtobufTransform{func(obj runtime.Object) bool {
 			daemonSet := obj.(*appsv1.DaemonSet)
 			daemonSet.Status.NumberReady = 0
 			daemonSet.Status.NumberAvailable = 0
 			return true
-		}},
-		pipeline.PrefixTransform{Prefix: "/registry/services/specs/", APIVersion: "v1", Kind: "Service", MutateJSON: preferService, MutateProtobuf: setTypedService("", "")},
-		pipeline.KeyTransform{Key: "/registry/services/specs/default/kubernetes", MutateJSON: setService("198.18.0.1", "fdc6::1"), MutateProtobuf: setTypedService("198.18.0.1", "fdc6::1")},
+		}}},
+		pipeline.PrefixTransform{Prefix: "/registry/services/specs/", APIVersion: "v1", Kind: "Service", JSONTransforms: []pipeline.JSONTransform{preferService}, ProtobufTransforms: []pipeline.ProtobufTransform{setTypedService("", "")}},
+		pipeline.KeyTransform{Key: "/registry/services/specs/default/kubernetes", JSONTransforms: []pipeline.JSONTransform{setService("198.18.0.1", "fdc6::1")}, ProtobufTransforms: []pipeline.ProtobufTransform{setTypedService("198.18.0.1", "fdc6::1")}},
 	}
 }

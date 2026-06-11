@@ -13,7 +13,21 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-// Transform is one key selector plus optional JSON and protobuf mutations.
+// NormalizeImageRef expands Docker Hub shorthand image references to explicit
+// registry/repository form.
+func NormalizeImageRef(value string) string {
+	value = strings.TrimSpace(value)
+	if slash := strings.Index(value, "/"); slash >= 0 {
+		first := value[:slash]
+		if strings.Contains(first, ".") || strings.Contains(first, ":") || first == "localhost" {
+			return value
+		}
+		return "docker.io/" + value
+	}
+	return "docker.io/library/" + value
+}
+
+// Transform is one key selector plus optional JSON and protobuf transform chains.
 type Transform interface {
 	matchesKey(key string) bool
 	applyJSON(key string, obj map[string]any) bool
@@ -23,15 +37,22 @@ type Transform interface {
 // Transforms is an ordered list of seed output transforms.
 type Transforms []Transform
 
-// PrefixTransform applies mutations to keys under Prefix whose object kind and
+// JSONTransform mutates a decoded JSON object and reports whether it changed.
+type JSONTransform func(map[string]any) bool
+
+// ProtobufTransform mutates a decoded Kubernetes runtime object and reports
+// whether it changed.
+type ProtobufTransform func(runtime.Object) bool
+
+// PrefixTransform applies transforms to keys under Prefix whose object kind and
 // API version match the transform metadata.
 type PrefixTransform struct {
-	Prefix         string
-	APIVersion     string
-	APIPrefix      string
-	Kind           string
-	MutateJSON     func(map[string]any) bool
-	MutateProtobuf func(runtime.Object) bool
+	Prefix             string
+	APIVersion         string
+	APIPrefix          string
+	Kind               string
+	JSONTransforms     []JSONTransform
+	ProtobufTransforms []ProtobufTransform
 }
 
 // matchesKey reports whether a registry key belongs to this prefix transform.
@@ -39,10 +60,10 @@ func (t PrefixTransform) matchesKey(key string) bool {
 	return strings.HasPrefix(key, t.Prefix)
 }
 
-// applyJSON runs a JSON transform when the object has the API version and kind
+// applyJSON runs JSON transforms when the object has the API version and kind
 // declared by the transform table.
 func (t PrefixTransform) applyJSON(_ string, obj map[string]any) bool {
-	if t.MutateJSON == nil {
+	if t.JSONTransforms == nil {
 		return false
 	}
 	apiVersion, _ := obj["apiVersion"].(string)
@@ -55,13 +76,13 @@ func (t PrefixTransform) applyJSON(_ string, obj map[string]any) bool {
 	if obj["kind"] != t.Kind {
 		return false
 	}
-	return t.MutateJSON(obj)
+	return applyJSONTransforms(t.JSONTransforms, obj)
 }
 
-// applyProtobuf runs a typed-object transform when the decoded Kubernetes
+// applyProtobuf runs protobuf transforms when the decoded Kubernetes
 // object has the API version and kind declared by the transform table.
 func (t PrefixTransform) applyProtobuf(_ string, obj runtime.Object) bool {
-	if t.MutateProtobuf == nil {
+	if t.ProtobufTransforms == nil {
 		return false
 	}
 	gvk := obj.GetObjectKind().GroupVersionKind()
@@ -75,14 +96,14 @@ func (t PrefixTransform) applyProtobuf(_ string, obj runtime.Object) bool {
 	if gvk.Kind != t.Kind {
 		return false
 	}
-	return t.MutateProtobuf(obj)
+	return applyProtobufTransforms(t.ProtobufTransforms, obj)
 }
 
-// KeyTransform applies mutations to one exact key.
+// KeyTransform applies transforms to one exact key.
 type KeyTransform struct {
-	Key            string
-	MutateJSON     func(map[string]any) bool
-	MutateProtobuf func(runtime.Object) bool
+	Key                string
+	JSONTransforms     []JSONTransform
+	ProtobufTransforms []ProtobufTransform
 }
 
 // matchesKey reports whether a registry key exactly matches this key transform.
@@ -90,22 +111,46 @@ func (t KeyTransform) matchesKey(key string) bool {
 	return key == t.Key
 }
 
-// applyJSON runs a JSON transform when the storage key exactly matches the key
+// applyJSON runs JSON transforms when the storage key exactly matches the key
 // declared by the transform table.
 func (t KeyTransform) applyJSON(key string, obj map[string]any) bool {
-	if t.MutateJSON == nil || key != t.Key {
+	if t.JSONTransforms == nil || key != t.Key {
 		return false
 	}
-	return t.MutateJSON(obj)
+	return applyJSONTransforms(t.JSONTransforms, obj)
 }
 
-// applyProtobuf runs a typed-object transform when the storage key exactly
+// applyProtobuf runs protobuf transforms when the storage key exactly
 // matches the key declared by the transform table.
 func (t KeyTransform) applyProtobuf(key string, obj runtime.Object) bool {
-	if t.MutateProtobuf == nil || key != t.Key {
+	if t.ProtobufTransforms == nil || key != t.Key {
 		return false
 	}
-	return t.MutateProtobuf(obj)
+	return applyProtobufTransforms(t.ProtobufTransforms, obj)
+}
+
+// applyJSONTransforms runs each JSON transform and reports whether any changed
+// the object.
+func applyJSONTransforms(transforms []JSONTransform, obj map[string]any) bool {
+	var changed bool
+	for _, mutate := range transforms {
+		if mutate(obj) {
+			changed = true
+		}
+	}
+	return changed
+}
+
+// applyProtobufTransforms runs each protobuf transform and reports whether any
+// changed the object.
+func applyProtobufTransforms(transforms []ProtobufTransform, obj runtime.Object) bool {
+	var changed bool
+	for _, mutate := range transforms {
+		if mutate(obj) {
+			changed = true
+		}
+	}
+	return changed
 }
 
 // TransformValue applies JSON transforms to a record value.

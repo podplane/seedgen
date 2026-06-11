@@ -10,8 +10,17 @@ import (
 	"sync"
 
 	"github.com/podplane/seedgen/pkg/pipeline"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	flowcontrolv1 "k8s.io/api/flowcontrol/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	resourcev1beta1 "k8s.io/api/resource/v1beta1"
+	schedulingv1 "k8s.io/api/scheduling/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 )
@@ -71,13 +80,27 @@ func transformKubernetesProtobufValue(transforms pipeline.Transforms, key string
 func getKubernetesCodecs() (serializer.CodecFactory, error) {
 	kubernetesCodecsOnce.Do(func() {
 		scheme := runtime.NewScheme()
-		if err := corev1.AddToScheme(scheme); err != nil {
-			kubernetesCodecsErr = fmt.Errorf("register Kubernetes core/v1 scheme: %w", err)
-			return
+		registrations := []struct {
+			name string
+			add  func(*runtime.Scheme) error
+		}{
+			{"admissionregistration/v1", admissionregistrationv1.AddToScheme},
+			{"apps/v1", appsv1.AddToScheme},
+			{"batch/v1", batchv1.AddToScheme},
+			{"core/v1", corev1.AddToScheme},
+			{"flowcontrol/v1", flowcontrolv1.AddToScheme},
+			{"networking/v1", networkingv1.AddToScheme},
+			{"policy/v1", policyv1.AddToScheme},
+			{"rbac/v1", rbacv1.AddToScheme},
+			{"resource/v1beta1", resourcev1beta1.AddToScheme},
+			{"scheduling/v1", schedulingv1.AddToScheme},
+			{"storage/v1", storagev1.AddToScheme},
 		}
-		if err := appsv1.AddToScheme(scheme); err != nil {
-			kubernetesCodecsErr = fmt.Errorf("register Kubernetes apps/v1 scheme: %w", err)
-			return
+		for _, registration := range registrations {
+			if err := registration.add(scheme); err != nil {
+				kubernetesCodecsErr = fmt.Errorf("register Kubernetes %s scheme: %w", registration.name, err)
+				return
+			}
 		}
 		kubernetesCodecs = serializer.NewCodecFactory(scheme)
 	})

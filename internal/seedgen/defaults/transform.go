@@ -15,16 +15,17 @@ import (
 
 // Transforms is the built-in Podplane seed transform table.
 var Transforms = pipeline.Transforms{
-	pipeline.PrefixTransform{Prefix: "/registry/cert-manager.io/certificates/", APIPrefix: "cert-manager.io/", Kind: "Certificate", MutateJSON: resetReadyCondition},
-	pipeline.PrefixTransform{Prefix: "/registry/cert-manager.io/issuers/", APIPrefix: "cert-manager.io/", Kind: "Issuer", MutateJSON: resetReadyCondition},
-	pipeline.PrefixTransform{Prefix: "/registry/cert-manager.io/clusterissuers/", APIPrefix: "cert-manager.io/", Kind: "ClusterIssuer", MutateJSON: resetReadyCondition},
-	pipeline.PrefixTransform{Prefix: "/registry/helm.toolkit.fluxcd.io/helmreleases/", APIPrefix: "helm.toolkit.fluxcd.io/", Kind: "HelmRelease", MutateJSON: resetReadyCondition},
-	pipeline.PrefixTransform{Prefix: "/registry/policy.cert-manager.io/certificaterequestpolicies/", APIPrefix: "policy.cert-manager.io/", Kind: "CertificateRequestPolicy", MutateJSON: resetReadyCondition},
-	pipeline.PrefixTransform{Prefix: "/registry/deployments/", APIVersion: "apps/v1", Kind: "Deployment", MutateJSON: resetAvailableCondition, MutateProtobuf: resetDeploymentAvailableCondition},
-	pipeline.PrefixTransform{Prefix: "/registry/daemonsets/", APIVersion: "apps/v1", Kind: "DaemonSet", MutateJSON: resetDaemonSetAvailability, MutateProtobuf: resetTypedDaemonSetAvailability},
-	pipeline.PrefixTransform{Prefix: "/registry/services/specs/", APIVersion: "v1", Kind: "Service", MutateJSON: preferDualStackService, MutateProtobuf: preferDualStackServiceObject},
-	pipeline.KeyTransform{Key: "/registry/services/specs/default/kubernetes", MutateJSON: setServiceDualStack("198.18.0.1", "fdc6::1"), MutateProtobuf: setServiceDualStackObject("198.18.0.1", "fdc6::1")},
-	pipeline.KeyTransform{Key: "/registry/services/specs/platform-coredns/platform-coredns", MutateJSON: setServiceDualStack("198.19.255.254", "fdc6::ffff"), MutateProtobuf: setServiceDualStackObject("198.19.255.254", "fdc6::ffff")},
+	pipeline.PrefixTransform{Prefix: "/registry/cert-manager.io/certificates/", APIPrefix: "cert-manager.io/", Kind: "Certificate", JSONTransforms: []pipeline.JSONTransform{resetReadyCondition}},
+	pipeline.PrefixTransform{Prefix: "/registry/cert-manager.io/issuers/", APIPrefix: "cert-manager.io/", Kind: "Issuer", JSONTransforms: []pipeline.JSONTransform{resetReadyCondition}},
+	pipeline.PrefixTransform{Prefix: "/registry/cert-manager.io/clusterissuers/", APIPrefix: "cert-manager.io/", Kind: "ClusterIssuer", JSONTransforms: []pipeline.JSONTransform{resetReadyCondition}},
+	pipeline.PrefixTransform{Prefix: "/registry/helm.toolkit.fluxcd.io/helmreleases/", APIPrefix: "helm.toolkit.fluxcd.io/", Kind: "HelmRelease", JSONTransforms: []pipeline.JSONTransform{resetReadyCondition}},
+	pipeline.PrefixTransform{Prefix: "/registry/policy.cert-manager.io/certificaterequestpolicies/", APIPrefix: "policy.cert-manager.io/", Kind: "CertificateRequestPolicy", JSONTransforms: []pipeline.JSONTransform{resetReadyCondition}},
+	pipeline.PrefixTransform{Prefix: "/registry/deployments/", APIVersion: "apps/v1", Kind: "Deployment", JSONTransforms: []pipeline.JSONTransform{resetAvailableCondition, normalizePodTemplateSpecImages}, ProtobufTransforms: []pipeline.ProtobufTransform{resetDeploymentAvailableCondition, normalizeTypedPodTemplateSpecImages}},
+	pipeline.PrefixTransform{Prefix: "/registry/daemonsets/", APIVersion: "apps/v1", Kind: "DaemonSet", JSONTransforms: []pipeline.JSONTransform{resetDaemonSetAvailability, normalizePodTemplateSpecImages}, ProtobufTransforms: []pipeline.ProtobufTransform{resetTypedDaemonSetAvailability, normalizeTypedPodTemplateSpecImages}},
+	pipeline.PrefixTransform{Prefix: "/registry/statefulsets/", APIVersion: "apps/v1", Kind: "StatefulSet", JSONTransforms: []pipeline.JSONTransform{normalizePodTemplateSpecImages}, ProtobufTransforms: []pipeline.ProtobufTransform{normalizeTypedPodTemplateSpecImages}},
+	pipeline.PrefixTransform{Prefix: "/registry/services/specs/", APIVersion: "v1", Kind: "Service", JSONTransforms: []pipeline.JSONTransform{preferDualStackService}, ProtobufTransforms: []pipeline.ProtobufTransform{preferDualStackServiceObject}},
+	pipeline.KeyTransform{Key: "/registry/services/specs/default/kubernetes", JSONTransforms: []pipeline.JSONTransform{setServiceDualStack("198.18.0.1", "fdc6::1")}, ProtobufTransforms: []pipeline.ProtobufTransform{setServiceDualStackObject("198.18.0.1", "fdc6::1")}},
+	pipeline.KeyTransform{Key: "/registry/services/specs/platform-coredns/platform-coredns", JSONTransforms: []pipeline.JSONTransform{setServiceDualStack("198.19.255.254", "fdc6::ffff")}, ProtobufTransforms: []pipeline.ProtobufTransform{setServiceDualStackObject("198.19.255.254", "fdc6::ffff")}},
 }
 
 // resetReadyCondition marks a True Ready condition as False in a JSON object.
@@ -111,6 +112,85 @@ func resetTypedDaemonSetAvailability(obj runtime.Object) bool {
 	return changed
 }
 
+// normalizePodTemplateSpecImages normalizes image references under a workload's
+// JSON pod template spec.
+func normalizePodTemplateSpecImages(obj map[string]any) bool {
+	spec, ok := obj["spec"].(map[string]any)
+	if !ok {
+		return false
+	}
+	template, ok := spec["template"].(map[string]any)
+	if !ok {
+		return false
+	}
+	podSpec, ok := template["spec"].(map[string]any)
+	if !ok {
+		return false
+	}
+	var changed bool
+	for _, key := range []string{"initContainers", "containers", "ephemeralContainers"} {
+		items, ok := podSpec[key].([]any)
+		if !ok {
+			continue
+		}
+		for _, item := range items {
+			container, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			image, ok := container["image"].(string)
+			if !ok || image == "" {
+				continue
+			}
+			if normalized := pipeline.NormalizeImageRef(image); normalized != image {
+				container["image"] = normalized
+				changed = true
+			}
+		}
+	}
+	return changed
+}
+
+// normalizeTypedPodTemplateSpecImages normalizes image references under a typed
+// workload pod template spec.
+func normalizeTypedPodTemplateSpecImages(obj runtime.Object) bool {
+	switch workload := obj.(type) {
+	case *appsv1.Deployment:
+		return normalizeTypedPodSpecImages(&workload.Spec.Template.Spec)
+	case *appsv1.DaemonSet:
+		return normalizeTypedPodSpecImages(&workload.Spec.Template.Spec)
+	case *appsv1.StatefulSet:
+		return normalizeTypedPodSpecImages(&workload.Spec.Template.Spec)
+	default:
+		return false
+	}
+}
+
+// normalizeTypedPodSpecImages normalizes image references in typed pod spec
+// container lists.
+func normalizeTypedPodSpecImages(podSpec *corev1.PodSpec) bool {
+	var changed bool
+	for i := range podSpec.InitContainers {
+		if normalized := pipeline.NormalizeImageRef(podSpec.InitContainers[i].Image); normalized != podSpec.InitContainers[i].Image {
+			podSpec.InitContainers[i].Image = normalized
+			changed = true
+		}
+	}
+	for i := range podSpec.Containers {
+		if normalized := pipeline.NormalizeImageRef(podSpec.Containers[i].Image); normalized != podSpec.Containers[i].Image {
+			podSpec.Containers[i].Image = normalized
+			changed = true
+		}
+	}
+	for i := range podSpec.EphemeralContainers {
+		if normalized := pipeline.NormalizeImageRef(podSpec.EphemeralContainers[i].Image); normalized != podSpec.EphemeralContainers[i].Image {
+			podSpec.EphemeralContainers[i].Image = normalized
+			changed = true
+		}
+	}
+	return changed
+}
+
 // preferDualStackService mutates a JSON Service to prefer dual-stack networking
 // while preserving its existing cluster IP allocation.
 func preferDualStackService(obj map[string]any) bool {
@@ -128,7 +208,7 @@ func preferDualStackServiceObject(obj runtime.Object) bool {
 	return setTypedServiceDualStackFields(&service.Spec, "", "")
 }
 
-// setServiceDualStack returns a JSON Service mutation for services whose
+// setServiceDualStack returns a JSON Service transform for services whose
 // cluster IPs are part of the seed template.
 func setServiceDualStack(ipv4, ipv6 string) func(map[string]any) bool {
 	return func(obj map[string]any) bool {
@@ -143,7 +223,7 @@ func setServiceDualStack(ipv4, ipv6 string) func(map[string]any) bool {
 	}
 }
 
-// setServiceDualStackObject returns a typed Service mutation for services whose
+// setServiceDualStackObject returns a typed Service transform for services whose
 // cluster IPs are part of the seed template.
 func setServiceDualStackObject(ipv4, ipv6 string) func(runtime.Object) bool {
 	return func(obj runtime.Object) bool {

@@ -7,6 +7,10 @@ package defaults
 import (
 	"encoding/json"
 	"testing"
+
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // TestPipeline verifies the built-in pipeline can parse its rules and run a
@@ -52,4 +56,48 @@ func TestPipeline(t *testing.T) {
 	if len(clusterIPs) != 2 || clusterIPs[0] != "198.18.0.1" || clusterIPs[1] != "fdc6::1" {
 		t.Fatalf("clusterIPs = %#v, want default IPv4 and IPv6", clusterIPs)
 	}
+}
+
+func TestTransformsNormalizeWorkloadImages(t *testing.T) {
+	t.Parallel()
+	value := []byte(`{"apiVersion":"apps/v1","kind":"Deployment","spec":{"template":{"spec":{"initContainers":[{"name":"init","image":"coredns/coredns:v1.12.1"}],"containers":[{"name":"app","image":"caddy:2"}],"ephemeralContainers":[{"name":"debug","image":"localhost/debug:latest"}]}}}}`)
+	got, err := Transforms.TransformValue([]byte("/registry/deployments/platform-example/example"), value)
+	if err != nil {
+		t.Fatalf("TransformValue: %v", err)
+	}
+	var deployment map[string]any
+	if err := json.Unmarshal(got, &deployment); err != nil {
+		t.Fatalf("decode transformed deployment: %v", err)
+	}
+	podSpec := deployment["spec"].(map[string]any)["template"].(map[string]any)["spec"].(map[string]any)
+	if image := containerImage(t, podSpec, "initContainers", 0); image != "docker.io/coredns/coredns:v1.12.1" {
+		t.Fatalf("init image = %q, want normalized Docker Hub repo", image)
+	}
+	if image := containerImage(t, podSpec, "containers", 0); image != "docker.io/library/caddy:2" {
+		t.Fatalf("container image = %q, want normalized Docker Hub library repo", image)
+	}
+	if image := containerImage(t, podSpec, "ephemeralContainers", 0); image != "localhost/debug:latest" {
+		t.Fatalf("ephemeral image = %q, want unchanged explicit localhost registry", image)
+	}
+
+	statefulSet := &appsv1.StatefulSet{
+		TypeMeta: metav1.TypeMeta{APIVersion: "apps/v1", Kind: "StatefulSet"},
+		Spec: appsv1.StatefulSetSpec{Template: corev1.PodTemplateSpec{Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{Name: "registry", Image: "registry:3"}},
+		}}},
+	}
+	if !Transforms.TransformObject("/registry/statefulsets/platform-registry/platform-registry", statefulSet) {
+		t.Fatalf("TransformObject reported no StatefulSet change")
+	}
+	if image := statefulSet.Spec.Template.Spec.Containers[0].Image; image != "docker.io/library/registry:3" {
+		t.Fatalf("StatefulSet image = %q, want normalized Docker Hub library repo", image)
+	}
+}
+
+// containerImage returns one image field from a decoded JSON pod spec fixture.
+func containerImage(t *testing.T, podSpec map[string]any, field string, index int) string {
+	t.Helper()
+	items := podSpec[field].([]any)
+	container := items[index].(map[string]any)
+	return container["image"].(string)
 }
