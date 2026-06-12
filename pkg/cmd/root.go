@@ -81,11 +81,15 @@ func run(cmd *cobra.Command, opts options, activePipeline pipeline.Pipeline) err
 	if err != nil {
 		return err
 	}
-	include, err := loadRules(opts.includeFile, activePipeline.IncludeRules)
+	include, err := loadRules(opts.includeFile, func() (*pipeline.Rules, error) {
+		return activePipeline.IncludeRules(expect)
+	})
 	if err != nil {
 		return fmt.Errorf("include rules: %w", err)
 	}
-	exclude, err := loadRules(opts.excludeFile, activePipeline.ExcludeRules)
+	exclude, err := loadRules(opts.excludeFile, func() (*pipeline.Rules, error) {
+		return activePipeline.ExcludeRules(expect)
+	})
 	if err != nil {
 		return fmt.Errorf("exclude rules: %w", err)
 	}
@@ -103,7 +107,7 @@ func run(cmd *cobra.Command, opts options, activePipeline pipeline.Pipeline) err
 		return err
 	}
 	fmt.Fprintf(os.Stderr, "%d total read\nwrote reports to %s:\n- %d included\n- %d excluded\n- %d ignored\n", len(records), reportsDir, len(includedKeys), len(excludedKeys), len(ignoredKeys))
-	writeOpts := seedgen.WriteOptions{LeaderID: opts.leaderID, Transforms: activePipeline.Transforms, VerifyComponents: opts.verify}
+	writeOpts := seedgen.WriteOptions{LeaderID: opts.leaderID, Transforms: activePipeline.Transforms(expect), VerifyComponents: opts.verify}
 	prepared, err := seedgen.PrepareRecordsForWrite(kept, writeOpts)
 	if err != nil {
 		return err

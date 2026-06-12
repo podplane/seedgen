@@ -1,0 +1,96 @@
+// Podplane <https://podplane.dev>
+// Copyright The Podplane Authors
+// SPDX-License-Identifier: Apache-2.0
+//
+// Exclude rules applied only when generating the minimal profile. These are
+// composed with the common root exclude rules but are not inherited by the
+// recommended profile.
+{
+  "keys": [],
+  "prefixes": [
+    // Addon namespaces and namespaced resources that may match broad common
+    // Kubernetes include rules.
+    "/registry/namespaces/platform-agent-sandbox",
+    "/registry/namespaces/platform-cert-manager",
+    "/registry/namespaces/platform-certs",
+    "/registry/namespaces/platform-traefik",
+    "/registry/namespaces/platform-trust",
+    "/registry/namespaces/platform-trust-manager",
+    "/registry/serviceaccounts/platform-agent-sandbox/",
+    "/registry/serviceaccounts/platform-cert-manager/",
+    "/registry/serviceaccounts/platform-certs/",
+    "/registry/serviceaccounts/platform-traefik/",
+    "/registry/serviceaccounts/platform-trust/",
+    "/registry/serviceaccounts/platform-trust-manager/",
+    "/registry/configmaps/platform-trust/",
+    "/registry/roles/platform-cert-manager/",
+    "/registry/roles/platform-certs/",
+    "/registry/roles/platform-trust-manager/",
+    "/registry/rolebindings/platform-cert-manager/",
+    "/registry/rolebindings/platform-certs/",
+    "/registry/rolebindings/platform-trust-manager/",
+    "/registry/deployments/platform-agent-sandbox/",
+    "/registry/deployments/platform-cert-manager/",
+    "/registry/deployments/platform-trust-manager/",
+    "/registry/daemonsets/platform-traefik/",
+    "/registry/services/specs/platform-agent-sandbox/",
+    "/registry/services/specs/platform-cert-manager/",
+    "/registry/services/specs/platform-traefik/",
+    "/registry/services/specs/platform-trust-manager/",
+
+    // Addon Flux resources under core Flux API groups.
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-agent-sandbox/",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cert-manager/",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-certs/",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-traefik/",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-trust/",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-trust-manager/",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/agent-sandbox-crds",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/cert-manager-crds",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/traefik-crds",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/trust-manager-crds",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-agent-sandbox-",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cert-manager-",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-certs-",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-traefik-",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-trust-",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-trust-manager-",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-agent-sandbox-crds",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-cert-manager-crds",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-traefik-crds",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-trust-manager-crds",
+
+    // Recommended Gateway API resources. Gateway API CRDs stay in minimal.
+    "/registry/gateway.networking.k8s.io/gatewayclasses/platform-traefik",
+    "/registry/gateway.networking.k8s.io/gateways/platform-traefik/",
+    "/registry/gateway.networking.k8s.io/httproutes/platform-traefik/",
+    "/registry/gateway.networking.k8s.io/referencegrants/platform-",
+
+    // Addon cluster-scoped RBAC and admission resources.
+    "/registry/clusterroles/agent-sandbox",
+    "/registry/clusterroles/platform-cert-manager",
+    "/registry/clusterroles/platform-traefik",
+    "/registry/clusterroles/platform-trust",
+    "/registry/clusterroles/platform-use-certificaterequestpolicies",
+    "/registry/clusterroles/trust-manager",
+    "/registry/clusterrolebindings/agent-sandbox",
+    "/registry/clusterrolebindings/platform-cert-manager",
+    "/registry/clusterrolebindings/platform-traefik",
+    "/registry/clusterrolebindings/platform-trust",
+    "/registry/clusterrolebindings/platform-use-certificaterequestpolicies",
+    "/registry/clusterrolebindings/trust-manager",
+    "/registry/validatingwebhookconfigurations/platform-cert-manager",
+    "/registry/validatingwebhookconfigurations/platform-trust-manager",
+    "/registry/mutatingwebhookconfigurations/platform-cert-manager"
+  ],
+  "substrings": [
+    // Addon API groups and CRDs.
+    "cert-manager.io",
+    "acme.cert-manager.io",
+    "policy.cert-manager.io",
+    "trust.cert-manager.io",
+    "traefik.io",
+    "hub.traefik.io",
+    "agents.x-k8s.io"
+  ]
+}

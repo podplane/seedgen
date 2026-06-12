@@ -2,13 +2,14 @@
 // Copyright The Podplane Authors
 // SPDX-License-Identifier: Apache-2.0
 //
-// Default include rules for `seedgen`. A record is considered for keeping iff
-// its key matches one of these rules. The exclude rules are then applied to
-// drop unwanted matches.
+// Common include rules for every built-in seed profile. A record is considered
+// for keeping iff its key matches one of the common + profile include rules.
+// The common and profile exclude rules are then applied to drop unwanted
+// matches.
 //
-// Starting set is intentionally small and prefix-heavy. Populate it by running
-// seedgen against a freshly-bootstrapped local cluster and inspecting the
-// included.txt, excluded.txt, and ignored.txt key reports.
+// Keep this file limited to Netsy's initial record and Kubernetes records that
+// are part of a bare apiserver/controller-manager bootstrap. Podplane component
+// records belong in the minimal/ or recommended/ profile directories.
 {
   "keys": [
     // Netsy's initial internal record at revision 1. Keep it so seeds preserve
@@ -20,23 +21,20 @@
     "/registry/ipaddresses/198.18.0.1",
     "/registry/ipaddresses/fdc6::1",
     "/registry/ipaddresses/198.19.255.254",
-    "/registry/ipaddresses/fdc6::ffff"
+    "/registry/ipaddresses/fdc6::ffff",
+    "/registry/services/specs/default/kubernetes"
   ],
   "prefixes": [
-    // Core Kubernetes
-    "/registry/namespaces/",
-    "/registry/serviceaccounts/",
-    "/registry/configmaps/",
+    // Bare Kubernetes bootstrap records.
+    "/registry/namespaces/default",
+    "/registry/namespaces/kube-",
+    "/registry/serviceaccounts/default/",
+    "/registry/serviceaccounts/kube-",
+    "/registry/configmaps/kube-",
     "/registry/clusterroles/",
     "/registry/clusterrolebindings/",
-    "/registry/roles/",
-    "/registry/rolebindings/",
-    "/registry/services/specs/",
-    "/registry/deployments/",
-    "/registry/statefulsets/",
-    "/registry/daemonsets/",
-    "/registry/poddisruptionbudgets/",
-    "/registry/apiextensions.k8s.io/customresourcedefinitions/",
+    "/registry/roles/kube-",
+    "/registry/rolebindings/kube-",
     "/registry/apiregistration.k8s.io/apiservices/",
     "/registry/priorityclasses/",
     "/registry/prioritylevelconfigurations/",
@@ -48,60 +46,7 @@
     "/registry/validatingwebhookconfigurations/",
     "/registry/mutatingwebhookconfigurations/",
     "/registry/validatingadmissionpolicies/",
-    "/registry/validatingadmissionpolicybindings/",
-
-    // Flux (Podplane bootstrap)
-    "/registry/source.toolkit.fluxcd.io/",
-    "/registry/helm.toolkit.fluxcd.io/",
-    "/registry/kustomize.toolkit.fluxcd.io/",
-    "/registry/notification.toolkit.fluxcd.io/",
-
-    // cert-manager / trust-manager platform-owned resources. Do not include
-    // cert-manager resources from user namespaces; app Certificates and
-    // CertificateRequests are runtime state.
-    "/registry/cert-manager.io/certificates/platform-certs/",
-    "/registry/cert-manager.io/certificates/platform-traefik/",
-    "/registry/cert-manager.io/certificates/platform-trust-manager/",
-    "/registry/cert-manager.io/clusterissuers/platform-",
-    "/registry/cert-manager.io/issuers/platform-certs/",
-    "/registry/cert-manager.io/issuers/platform-trust-manager/",
-    "/registry/policy.cert-manager.io/certificaterequestpolicies/platform-",
-    "/registry/policy.cert-manager.io/certificaterequestpolicies/trust-manager-policy",
-    "/registry/trust.cert-manager.io/bundles/platform-",
-
-    // Traefik platform-owned resources. Do not include app/user Traefik CRs.
-    "/registry/traefik.io/ingressroutes/platform-traefik/",
-    "/registry/traefik.io/tlsstores/platform-traefik/",
-    "/registry/traefik.io/middlewares/platform-traefik/",
-    "/registry/traefik.io/middlewaretcps/platform-traefik/",
-    "/registry/traefik.io/tlsoptions/platform-traefik/",
-
-    // Gateway API platform-owned resources. App HTTPRoutes are deliberately
-    // excluded so deploy state is never baked into reusable seed snapshots.
-    "/registry/gateway.networking.k8s.io/gatewayclasses/platform-traefik",
-    "/registry/gateway.networking.k8s.io/gateways/platform-traefik/",
-    "/registry/gateway.networking.k8s.io/httproutes/platform-traefik/",
-    "/registry/gateway.networking.k8s.io/referencegrants/platform-",
-
-    // Helm release state Secrets for the platform-managed charts only
-    // (bootstrap.sh + platform-components installed via Flux). Needed so
-    // Flux can reconcile existing releases on a new cluster instead of
-    // reinstalling from scratch. All other Secrets — including Helm
-    // releases in user-managed namespaces — are deliberately excluded by
-    // not being matched by any include rule.
-    "/registry/secrets/platform-agent-sandbox/sh.helm.release.v1.",
-    "/registry/secrets/platform-cluster/sh.helm.release.v1.",
-    "/registry/secrets/platform-cilium/sh.helm.release.v1.",
-    "/registry/secrets/platform-coredns/sh.helm.release.v1.",
-    "/registry/secrets/platform-fluxcd/sh.helm.release.v1.",
-    "/registry/secrets/platform-components/sh.helm.release.v1.",
-    "/registry/secrets/platform-csi-aws-ebs/sh.helm.release.v1.",
-    "/registry/secrets/platform-cert-manager/sh.helm.release.v1.",
-    "/registry/secrets/platform-certs/sh.helm.release.v1.",
-    "/registry/secrets/platform-trust-manager/sh.helm.release.v1.",
-    "/registry/secrets/platform-trust/sh.helm.release.v1.",
-    "/registry/secrets/platform-traefik/sh.helm.release.v1.",
-    "/registry/secrets/platform-snapshot/sh.helm.release.v1."
+    "/registry/validatingadmissionpolicybindings/"
   ],
   "substrings": []
 }

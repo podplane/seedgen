@@ -1,0 +1,73 @@
+// Podplane <https://podplane.dev>
+// Copyright The Podplane Authors
+// SPDX-License-Identifier: Apache-2.0
+//
+// Include rules for the minimal seed profile. These are composed after the
+// common root include rules. Recommended inherits these rules and then adds its
+// own recommended/include.jsonc rules.
+{
+  "keys": [
+    "/registry/source.toolkit.fluxcd.io/gitrepositories/platform-components/podplane-components",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-components/platform-components",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/cilium-crds",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/fluxcd-crds",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/gateway-api-crds",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/platform-rbac",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cilium/cilium",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-coredns/coredns",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-fluxcd/fluxcd",
+    "/registry/services/specs/platform-coredns/platform-coredns",
+    "/registry/services/specs/platform-fluxcd/source-controller"
+  ],
+  "prefixes": [
+    // Core platform namespaces and namespaced resources.
+    "/registry/namespaces/platform-cluster",
+    "/registry/namespaces/platform-components",
+    "/registry/namespaces/platform-cilium",
+    "/registry/namespaces/platform-coredns",
+    "/registry/namespaces/platform-fluxcd",
+    "/registry/serviceaccounts/platform-cluster/",
+    "/registry/serviceaccounts/platform-components/",
+    "/registry/serviceaccounts/platform-cilium/",
+    "/registry/serviceaccounts/platform-coredns/",
+    "/registry/serviceaccounts/platform-fluxcd/",
+    "/registry/configmaps/platform-cilium/",
+    "/registry/configmaps/platform-coredns/",
+    "/registry/configmaps/platform-fluxcd/",
+    "/registry/roles/platform-cilium/",
+    "/registry/roles/platform-coredns/",
+    "/registry/roles/platform-fluxcd/",
+    "/registry/rolebindings/platform-cilium/",
+    "/registry/rolebindings/platform-coredns/",
+    "/registry/rolebindings/platform-fluxcd/",
+    "/registry/deployments/platform-coredns/",
+    "/registry/deployments/platform-cilium/",
+    "/registry/deployments/platform-fluxcd/",
+    "/registry/daemonsets/platform-cilium/",
+
+    // Core CRDs. Minimal profile excludes remove recommended addon CRDs that
+    // may match this broad CRD prefix when the input is a recommended cluster.
+    "/registry/apiextensions.k8s.io/customresourcedefinitions/",
+
+    // Helm release state Secrets for core platform-managed charts.
+    "/registry/secrets/platform-cluster/sh.helm.release.v1.platform-cilium-crds.",
+    "/registry/secrets/platform-cluster/sh.helm.release.v1.platform-fluxcd-crds.",
+    "/registry/secrets/platform-cluster/sh.helm.release.v1.platform-gateway-api-crds.",
+    "/registry/secrets/platform-cluster/sh.helm.release.v1.platform-rbac.",
+    "/registry/secrets/platform-cilium/sh.helm.release.v1.platform-cilium.",
+    "/registry/secrets/platform-coredns/sh.helm.release.v1.platform-coredns.",
+    "/registry/secrets/platform-fluxcd/sh.helm.release.v1.platform-fluxcd.",
+    "/registry/secrets/platform-components/sh.helm.release.v1.platform-components.",
+
+    // Flux source-controller HelmChart objects for core releases.
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-cilium-crds",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-fluxcd-crds",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-gateway-api-crds",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-platform-rbac",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-components-platform-components",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cilium-cilium",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-coredns-coredns",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-fluxcd-fluxcd"
+  ],
+  "substrings": []
+}

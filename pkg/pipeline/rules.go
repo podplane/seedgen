@@ -24,6 +24,22 @@ type Rules struct {
 	keySet map[string]struct{}
 }
 
+// MergeRules returns one rule set containing every key, prefix, and substring
+// from rules in order.
+func MergeRules(rules ...*Rules) *Rules {
+	merged := &Rules{}
+	for _, rule := range rules {
+		if rule == nil {
+			continue
+		}
+		merged.Keys = append(merged.Keys, rule.Keys...)
+		merged.Prefixes = append(merged.Prefixes, rule.Prefixes...)
+		merged.Substrings = append(merged.Substrings, rule.Substrings...)
+	}
+	merged.rebuild()
+	return merged
+}
+
 // LoadRulesFile reads and parses a JSONC rules file from disk.
 func LoadRulesFile(path string) (*Rules, error) {
 	data, err := os.ReadFile(path)
@@ -39,11 +55,16 @@ func LoadRulesBytes(data []byte, source string) (*Rules, error) {
 	if err := json.Unmarshal(jsonc.ToJSON(data), &rules); err != nil {
 		return nil, fmt.Errorf("decode rules %s: %w", source, err)
 	}
-	rules.keySet = make(map[string]struct{}, len(rules.Keys))
-	for _, key := range rules.Keys {
-		rules.keySet[key] = struct{}{}
-	}
+	rules.rebuild()
 	return &rules, nil
+}
+
+// rebuild refreshes the exact-key lookup table after parsing or merging rules.
+func (r *Rules) rebuild() {
+	r.keySet = make(map[string]struct{}, len(r.Keys))
+	for _, key := range r.Keys {
+		r.keySet[key] = struct{}{}
+	}
 }
 
 // Matches reports whether key matches any rule in the set.

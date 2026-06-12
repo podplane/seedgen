@@ -15,8 +15,8 @@ for use as a Podplane seed file (e.g. the one downloaded by
    package.
 2. Flatten the record history into the current value per key (deleted records
    drop the key, otherwise the latest revision wins).
-3. Apply include and exclude rules to drop runtime/per-cluster records that
-   should not appear in a template (events, leases, helm release state, etc.).
+3. Apply profile-specific include and exclude rules to drop runtime/per-cluster
+   records that should not appear in a template (events, leases, etc.).
 4. Renumber surviving records' revisions sequentially `1..N` and normalise them
    to look freshly created. This is required because Netsy's bootstrap
    integrity check requires `total records == max revision`.
@@ -44,8 +44,10 @@ are written to report files under `<output-dir>/reports/<name>/` by default
 (for example, `../seeds/reports/recommended/` for
 `--output ../seeds --name recommended`). The records written to the seed are
 also written as JSON files under `<output-dir>/records/<name>/`, with each file
-named from the record key by replacing `/` with `_`. The snapshot itself is
-written to `<output-dir>/<name>.netsy`.
+named from the record key by replacing `/` with `_`. Because both report and
+record paths include `<name>`, separate `minimal` and `recommended` runs keep
+separate audit trees. The snapshot itself is written to
+`<output-dir>/<name>.netsy`.
 
 | Flag                    | Default       | Description                                                                                           |
 | ----------------------- | ------------- | ----------------------------------------------------------------------------------------------------- |
@@ -69,6 +71,24 @@ ad-hoc/custom/debug exports, or pass an explicit `--expect` with any custom
 `--name`.
 
 ## Include / exclude rules
+
+The embedded rules are grouped by seed profile. Common bare-Kubernetes rules
+live at the defaults root, while profile rules live under `minimal/` and
+`recommended/`:
+
+- `minimal` uses common + minimal include rules, and common + minimal exclude
+  rules.
+- `recommended` uses common + minimal + recommended include rules, and common +
+  recommended exclude rules. It does not inherit minimal excludes.
+
+Minimal also has a few minimal-only transforms for records shared with
+recommended: reset the `platform-components` HelmRelease values, clear stale
+NodePort allocation data, and remove addon-derived RBAC rules from Kubernetes'
+default aggregated ClusterRoles.
+
+Custom include/exclude files passed with `--include` or `--exclude` replace the
+embedded rules for that side. Library users that build a custom pipeline can
+also provide profile-aware rule or transform hooks.
 
 Both files share the same JSONC shape:
 

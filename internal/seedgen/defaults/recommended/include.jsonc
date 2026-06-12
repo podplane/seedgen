@@ -1,0 +1,105 @@
+// Podplane <https://podplane.dev>
+// Copyright The Podplane Authors
+// SPDX-License-Identifier: Apache-2.0
+//
+// Include rules for the recommended seed profile. These are composed after the
+// common root include rules and minimal/include.jsonc.
+{
+  "keys": [
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/agent-sandbox-crds",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/cert-manager-crds",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/traefik-crds",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/trust-manager-crds",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-agent-sandbox/agent-sandbox",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cert-manager/cert-manager",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-certs/platform-certs",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-traefik/traefik",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-trust-manager/trust-manager",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-trust/platform-trust"
+  ],
+  "prefixes": [
+    // Recommended addon namespaces and namespaced resources.
+    "/registry/namespaces/platform-agent-sandbox",
+    "/registry/namespaces/platform-cert-manager",
+    "/registry/namespaces/platform-certs",
+    "/registry/namespaces/platform-traefik",
+    "/registry/namespaces/platform-trust",
+    "/registry/namespaces/platform-trust-manager",
+    "/registry/serviceaccounts/platform-agent-sandbox/",
+    "/registry/serviceaccounts/platform-cert-manager/",
+    "/registry/serviceaccounts/platform-certs/",
+    "/registry/serviceaccounts/platform-traefik/",
+    "/registry/serviceaccounts/platform-trust/",
+    "/registry/serviceaccounts/platform-trust-manager/",
+    "/registry/configmaps/default/platform-",
+    "/registry/configmaps/platform-trust/",
+    "/registry/roles/platform-cert-manager/",
+    "/registry/roles/platform-certs/",
+    "/registry/roles/platform-trust-manager/",
+    "/registry/rolebindings/platform-cert-manager/",
+    "/registry/rolebindings/platform-certs/",
+    "/registry/rolebindings/platform-trust-manager/",
+    "/registry/deployments/platform-agent-sandbox/",
+    "/registry/deployments/platform-cert-manager/",
+    "/registry/deployments/platform-trust-manager/",
+    "/registry/daemonsets/platform-traefik/",
+    "/registry/services/specs/platform-agent-sandbox/",
+    "/registry/services/specs/platform-cert-manager/",
+    "/registry/services/specs/platform-traefik/",
+    "/registry/services/specs/platform-trust-manager/",
+
+    // Recommended addon Helm release state Secrets.
+    "/registry/secrets/platform-agent-sandbox/sh.helm.release.v1.",
+    "/registry/secrets/platform-cluster/sh.helm.release.v1.platform-agent-sandbox-crds.",
+    "/registry/secrets/platform-cluster/sh.helm.release.v1.platform-cert-manager-crds.",
+    "/registry/secrets/platform-cluster/sh.helm.release.v1.platform-traefik-crds.",
+    "/registry/secrets/platform-cluster/sh.helm.release.v1.platform-trust-manager-crds.",
+    "/registry/secrets/platform-cert-manager/sh.helm.release.v1.",
+    "/registry/secrets/platform-certs/sh.helm.release.v1.",
+    "/registry/secrets/platform-traefik/sh.helm.release.v1.",
+    "/registry/secrets/platform-trust-manager/sh.helm.release.v1.",
+    "/registry/secrets/platform-trust/sh.helm.release.v1.",
+
+    // Recommended addon Flux HelmChart objects.
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-agent-sandbox-agent-sandbox",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cert-manager-cert-manager",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-certs-platform-certs",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-agent-sandbox-crds",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-cert-manager-crds",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-traefik-crds",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-trust-manager-crds",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-traefik-traefik",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-trust-manager-trust-manager",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-trust-platform-trust",
+
+    // Platform-owned addon custom resources.
+    "/registry/cert-manager.io/certificates/platform-certs/",
+    "/registry/cert-manager.io/certificates/platform-traefik/",
+    "/registry/cert-manager.io/certificates/platform-trust-manager/",
+    "/registry/cert-manager.io/clusterissuers/platform-",
+    "/registry/cert-manager.io/issuers/platform-certs/",
+    "/registry/cert-manager.io/issuers/platform-trust-manager/",
+    "/registry/policy.cert-manager.io/certificaterequestpolicies/platform-",
+    "/registry/policy.cert-manager.io/certificaterequestpolicies/trust-manager-policy",
+    "/registry/trust.cert-manager.io/bundles/platform-",
+    "/registry/traefik.io/ingressroutes/platform-traefik/",
+    "/registry/traefik.io/tlsstores/platform-traefik/",
+    "/registry/traefik.io/middlewares/platform-traefik/",
+    "/registry/traefik.io/middlewaretcps/platform-traefik/",
+    "/registry/traefik.io/tlsoptions/platform-traefik/",
+    "/registry/gateway.networking.k8s.io/gatewayclasses/platform-traefik",
+    "/registry/gateway.networking.k8s.io/gateways/platform-traefik/",
+    "/registry/gateway.networking.k8s.io/httproutes/platform-traefik/",
+    "/registry/gateway.networking.k8s.io/referencegrants/platform-"
+  ],
+  "substrings": [
+    // Recommended addon CRD/API groups.
+    "cert-manager.io",
+    "acme.cert-manager.io",
+    "policy.cert-manager.io",
+    "trust.cert-manager.io",
+    "traefik.io",
+    "hub.traefik.io",
+    "agents.x-k8s.io"
+  ]
+}

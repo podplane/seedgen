@@ -18,16 +18,16 @@ import (
 func TestPipeline(t *testing.T) {
 	t.Parallel()
 	p := Pipeline()
-	include, err := p.IncludeRules()
+	include, err := p.IncludeRules("none")
 	if err != nil {
-		t.Fatalf("IncludeRules: %v", err)
+		t.Fatalf("IncludeRules(none): %v", err)
 	}
 	if len(include.Prefixes) == 0 {
 		t.Fatal("default include rules should have prefixes")
 	}
-	exclude, err := p.ExcludeRules()
+	exclude, err := p.ExcludeRules("none")
 	if err != nil {
-		t.Fatalf("ExcludeRules: %v", err)
+		t.Fatalf("ExcludeRules(none): %v", err)
 	}
 	if len(exclude.Prefixes) == 0 {
 		t.Fatal("default exclude rules should have prefixes")
@@ -48,8 +48,40 @@ func TestPipeline(t *testing.T) {
 		t.Fatal("default exclude rules should match Kubernetes events")
 	}
 
+	minimalInclude, err := p.IncludeRules("minimal")
+	if err != nil {
+		t.Fatalf("minimal IncludeRules: %v", err)
+	}
+	minimalExclude, err := p.ExcludeRules("minimal")
+	if err != nil {
+		t.Fatalf("minimal ExcludeRules: %v", err)
+	}
+	if !minimalInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-fluxcd/fluxcd") {
+		t.Fatal("minimal include rules should match core Flux HelmRelease")
+	}
+	if minimalInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cert-manager/cert-manager") {
+		t.Fatal("minimal include rules should not match addon HelmRelease")
+	}
+	if !minimalExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cert-manager/cert-manager") {
+		t.Fatal("minimal exclude rules should drop recommended addon Flux resources")
+	}
+	recommendedInclude, err := p.IncludeRules("recommended")
+	if err != nil {
+		t.Fatalf("recommended IncludeRules: %v", err)
+	}
+	recommendedExclude, err := p.ExcludeRules("recommended")
+	if err != nil {
+		t.Fatalf("recommended ExcludeRules: %v", err)
+	}
+	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cert-manager/cert-manager") {
+		t.Fatal("recommended include rules should match addon HelmRelease")
+	}
+	if recommendedExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cert-manager/cert-manager") {
+		t.Fatal("recommended exclude rules should not inherit minimal addon excludes")
+	}
+
 	value := []byte(`{"apiVersion":"v1","kind":"Service","spec":{"clusterIP":"198.18.0.1","clusterIPs":["198.18.0.1"],"ipFamilies":["IPv4"],"ipFamilyPolicy":"SingleStack"}}`)
-	got, err := p.Transforms.TransformValue([]byte("/registry/services/specs/default/kubernetes"), value)
+	got, err := p.Transforms("none").TransformValue([]byte("/registry/services/specs/default/kubernetes"), value)
 	if err != nil {
 		t.Fatalf("TransformValue: %v", err)
 	}
@@ -64,6 +96,52 @@ func TestPipeline(t *testing.T) {
 	clusterIPs := spec["clusterIPs"].([]any)
 	if len(clusterIPs) != 2 || clusterIPs[0] != "198.18.0.1" || clusterIPs[1] != "fdc6::1" {
 		t.Fatalf("clusterIPs = %#v, want default IPv4 and IPv6", clusterIPs)
+	}
+}
+
+func TestMinimalTransformsResetRecommendedState(t *testing.T) {
+	t.Parallel()
+
+	helmRelease := []byte(`{"apiVersion":"helm.toolkit.fluxcd.io/v2","kind":"HelmRelease","metadata":{"name":"platform-components"},"spec":{"values":{"platform":{"components":{"apps":{"traefik":{"enabled":true}}}}}}}`)
+	got, err := MinimalTransforms.TransformValue([]byte("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-components/platform-components"), helmRelease)
+	if err != nil {
+		t.Fatalf("TransformValue(platform-components): %v", err)
+	}
+	var obj map[string]any
+	if err := json.Unmarshal(got, &obj); err != nil {
+		t.Fatalf("decode transformed HelmRelease: %v", err)
+	}
+	if _, ok := obj["spec"].(map[string]any)["values"]; ok {
+		t.Fatalf("minimal platform-components values were not removed: %s", got)
+	}
+
+	rangeAllocation := []byte(`{"apiVersion":"v1","kind":"RangeAllocation","data":"IAAAAAAAAAAAAAg=","range":"30000-32767"}`)
+	got, err = MinimalTransforms.TransformValue([]byte("/registry/ranges/servicenodeports"), rangeAllocation)
+	if err != nil {
+		t.Fatalf("TransformValue(servicenodeports): %v", err)
+	}
+	if err := json.Unmarshal(got, &obj); err != nil {
+		t.Fatalf("decode transformed RangeAllocation: %v", err)
+	}
+	if obj["data"] != "" {
+		t.Fatalf("servicenodeports data = %v, want empty", obj["data"])
+	}
+
+	clusterRole := []byte(`{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"ClusterRole","rules":[{"apiGroups":["cert-manager.io"],"resources":["certificates"],"verbs":["get"]},{"apiGroups":["source.toolkit.fluxcd.io"],"resources":["gitrepositories"],"verbs":["get"]}]}`)
+	got, err = MinimalTransforms.TransformValue([]byte("/registry/clusterroles/view"), clusterRole)
+	if err != nil {
+		t.Fatalf("TransformValue(view ClusterRole): %v", err)
+	}
+	if err := json.Unmarshal(got, &obj); err != nil {
+		t.Fatalf("decode transformed ClusterRole: %v", err)
+	}
+	rules := obj["rules"].([]any)
+	if len(rules) != 1 {
+		t.Fatalf("rules length = %d, want 1: %s", len(rules), got)
+	}
+	apiGroups := rules[0].(map[string]any)["apiGroups"].([]any)
+	if apiGroups[0] != "source.toolkit.fluxcd.io" {
+		t.Fatalf("remaining apiGroups = %#v, want Flux rule", apiGroups)
 	}
 }
 

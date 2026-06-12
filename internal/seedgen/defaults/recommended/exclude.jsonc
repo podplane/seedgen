@@ -1,0 +1,11 @@
+// Podplane <https://podplane.dev>
+// Copyright The Podplane Authors
+// SPDX-License-Identifier: Apache-2.0
+//
+// Exclude rules applied only when generating the recommended profile. The
+// common root exclude rules are always applied first.
+{
+  "keys": [],
+  "prefixes": [],
+  "substrings": []
+}
