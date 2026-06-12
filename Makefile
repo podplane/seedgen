@@ -5,7 +5,7 @@
 .DEFAULT_GOAL := help
 
 BINDIR=bin
-LOGSDIR=logs
+REPORTSDIR=reports
 
 BINARY_NAME=seedgen
 MAIN_PKG=.
@@ -84,4 +84,4 @@ build: ## Build the seedgen binary
 
 clean: ## Remove build artifacts
 	rm -rf $(BINDIR)
-	rm -rf $(LOGSDIR)
+	rm -rf $(REPORTSDIR)

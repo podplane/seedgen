@@ -73,3 +73,66 @@ func TestWriteKeyReports(t *testing.T) {
 		}
 	}
 }
+
+// TestResolveExpectAndReportNameFromPublishedName verifies that built-in seed
+// names set their matching expectation.
+func TestResolveExpectAndReportNameFromPublishedName(t *testing.T) {
+	t.Parallel()
+	cmd := NewRootCmd(pipeline.Pipeline{})
+	expect, reportName, err := resolveExpectAndReportName(cmd, options{name: "recommended"})
+	if err != nil {
+		t.Fatalf("resolveExpectAndReportName: %v", err)
+	}
+	if expect != "recommended" || reportName != "recommended" {
+		t.Fatalf("resolveExpectAndReportName = %q, %q; want recommended, recommended", expect, reportName)
+	}
+}
+
+// TestResolveExpectAndReportNameRequiresExpectForCustomName verifies that
+// custom seed names do not silently use a published expectation.
+func TestResolveExpectAndReportNameRequiresExpectForCustomName(t *testing.T) {
+	t.Parallel()
+	cmd := NewRootCmd(pipeline.Pipeline{})
+	if _, _, err := resolveExpectAndReportName(cmd, options{name: "debug"}); err == nil {
+		t.Fatal("resolveExpectAndReportName succeeded without --expect")
+	}
+}
+
+// TestResolveExpectAndReportNameAllowsDryRunWithoutNameWhenExpectSet verifies
+// that dry-run reports can be named from an explicit --expect value.
+func TestResolveExpectAndReportNameAllowsDryRunWithoutNameWhenExpectSet(t *testing.T) {
+	t.Parallel()
+	cmd := NewRootCmd(pipeline.Pipeline{})
+	if err := cmd.Flags().Set("expect", "none"); err != nil {
+		t.Fatalf("set expect: %v", err)
+	}
+	expect, reportName, err := resolveExpectAndReportName(cmd, options{dryRun: true, expect: "none"})
+	if err != nil {
+		t.Fatalf("resolveExpectAndReportName: %v", err)
+	}
+	if expect != "none" || reportName != "none" {
+		t.Fatalf("resolveExpectAndReportName = %q, %q; want none, none", expect, reportName)
+	}
+}
+
+// TestResolveOutputPath verifies that the seed output path is derived from the
+// output directory and seed name.
+func TestResolveOutputPath(t *testing.T) {
+	t.Parallel()
+	got := resolveOutputPath(options{output: filepath.Join("..", "seeds"), name: "recommended"})
+	want := filepath.Join("..", "seeds", "recommended.netsy")
+	if got != want {
+		t.Fatalf("resolveOutputPath = %q, want %q", got, want)
+	}
+}
+
+// TestResolveReportsDir verifies that key reports are grouped under the output
+// directory by report name.
+func TestResolveReportsDir(t *testing.T) {
+	t.Parallel()
+	got := resolveReportsDir(options{output: filepath.Join("..", "seeds")}, "recommended")
+	want := filepath.Join("..", "seeds", "reports", "recommended")
+	if got != want {
+		t.Fatalf("resolveReportsDir = %q, want %q", got, want)
+	}
+}

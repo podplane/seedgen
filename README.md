@@ -28,37 +28,43 @@ Podplane local VM and has no dependency on SQLite, CGO, or a running cluster.
 ## Usage
 
 ```
-seedgen --output <file> [flags]                       # reads the "default" local cluster
-seedgen --cluster <id>  --output <file> [flags]
-seedgen --input <dir>   --output <file> [flags]
-seedgen --dry-run       [flags]                       # any of the above without writing
-seedgen --expect recommended --output recommended.netsy
-seedgen --verify-components components.json --output recommended.netsy
+seedgen --name <name> [flags]
+seedgen --cluster <id> --name <name> [flags]          # reads the named local cluster
+seedgen --input <dir>  --name <name> [flags]
+seedgen --dry-run --name <name> [flags]               # any of the above without writing
+seedgen --name recommended --output ../seeds
+seedgen --name recommended --verify-components components.json
 ```
 
+When neither `--cluster` nor `--input` is set, `seedgen` reads the `default`
+local cluster.
+
 The key counts are printed to stderr. The included, excluded, and ignored keys
-are written to the report files under `--logs`, and the snapshot itself is
-written to the file given by `--output`.
+are written to report files under `<output-dir>/reports/<name>/` by default
+(for example, `../seeds/reports/recommended/` for
+`--output ../seeds --name recommended`), and the snapshot itself is written to
+`<output-dir>/<name>.netsy`.
 
 | Flag                    | Default       | Description                                                                                           |
 | ----------------------- | ------------- | ----------------------------------------------------------------------------------------------------- |
 | `--cluster`             | `default`     | Local Podplane cluster id; shortcut for `~/.podplane/data/s3/buckets/<id>-netsy`.                     |
 | `--input`               | (unset)       | Directory containing `snapshots/` and `chunks/` (a Netsy bucket root on disk). Overrides `--cluster`. |
-| `--output`              | (required)    | Output `.netsy` file path. Required unless `--dry-run` is set.                                        |
+| `--output`              | `.`           | Directory to write the `.netsy` file and key reports.                                                 |
+| `--name`                | (required)    | Seed name used for `<name>.netsy` and `reports/<name>/`. Required unless `--dry-run --expect <value>` is used. |
 | `--leader-id`           | `seed`        | `LeaderID` stamped on the output snapshot.                                                            |
 | `--include`             | (embedded)    | Path to a JSONC include file overriding the pipeline default.                                         |
 | `--exclude`             | (embedded)    | Path to a JSONC exclude file overriding the pipeline default.                                         |
-| `--expect`              | `recommended` | Check for expected records based on the type of seed. Options: `recommended`, `minimal`, or `none`.   |
+| `--expect`              | name-derived  | Check for expected records based on the type of seed. Defaults to `--name` when name is `recommended` or `minimal`; otherwise required. Options: `recommended`, `minimal`, or `none`. |
 | `--verify-components`   | (unset)       | Path to a components manifest; fail if any emitted seed image is absent from it.                      |
 | `--dry-run`             | `false`       | Run the full pipeline and write key reports but do not write the output file.                         |
-| `--logs`                | `logs`        | Directory to write `included.txt`, `excluded.txt`, and `ignored.txt` key reports.                     |
 
-The default `--expect recommended` guard is intended for published seed
-snapshots. The check runs after the current-state flattening and
-include/exclude filters, so it catches both clusters that were exported too
-early and filter rules that accidentally drop required platform records. Use
-`--expect minimal` for minimal seeds or `--expect none` for ad-hoc/custom/debug
-exports.
+The `recommended` expectation guard is intended for published seed snapshots.
+The check runs after the current-state flattening and include/exclude filters,
+so it catches both clusters that were exported too early and filter rules that
+accidentally drop required platform records. The `--expect` value is inferred
+from `--name recommended` or `--name minimal`. Use `--expect none` for
+ad-hoc/custom/debug exports, or pass an explicit `--expect` with any custom
+`--name`.
 
 ## Include / exclude rules
 

@@ -23,11 +23,11 @@ type options struct {
 	input       string
 	cluster     string
 	output      string
+	name        string
 	leaderID    string
 	includeFile string
 	excludeFile string
 	expect      string
-	logs        string
 	verify      string
 	dryRun      bool
 }
@@ -57,25 +57,27 @@ suitable for use as a Podplane seed.`,
 			return run(cmd, opts, activePipeline)
 		},
 	}
-	cmd.Flags().StringVar(&opts.input, "input", "", "Directory containing snapshots/ and chunks/ (a Netsy bucket root on disk; overrides --cluster)")
+	cmd.Flags().StringVarP(&opts.input, "input", "i", "", "Directory containing snapshots/ and chunks/ (a Netsy bucket root on disk; overrides --cluster)")
 	cmd.Flags().StringVar(&opts.cluster, "cluster", "default", "Local Podplane cluster id; shortcut for ~/.podplane/data/s3/buckets/<id>-netsy")
-	cmd.Flags().StringVarP(&opts.output, "output", "o", "", "Output .netsy file path (required unless --dry-run)")
+	cmd.Flags().StringVarP(&opts.output, "output", "o", ".", "Directory to write the .netsy file and key reports")
+	cmd.Flags().StringVarP(&opts.name, "name", "n", "", "Seed name used for <name>.netsy and reports/<name>/")
 	cmd.Flags().StringVar(&opts.leaderID, "leader-id", "seed", "LeaderID stamped on the output snapshot")
 	cmd.Flags().StringVar(&opts.includeFile, "include", "", "Path to a JSONC include file overriding the pipeline default")
 	cmd.Flags().StringVar(&opts.excludeFile, "exclude", "", "Path to a JSONC exclude file overriding the pipeline default")
-	cmd.Flags().StringVar(&opts.expect, "expect", "recommended", "Check for expected records based on the type of seed. Options: recommended (default), minimal, or none")
-	cmd.Flags().StringVar(&opts.logs, "logs", "logs", "Directory to write included.txt, excluded.txt, and ignored.txt key logs")
+	cmd.Flags().StringVar(&opts.expect, "expect", "", "Check for expected records based on the type of seed. Defaults to --name when name is recommended or minimal. Options: recommended, minimal, or none")
 	cmd.Flags().StringVar(&opts.verify, "verify-components", "", "Path to components.json manifest; fail if emitted seed images are absent from it")
-	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Run the full pipeline and write key logs but do not write the output file")
+	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Run the full pipeline and write key reports but do not write the output file")
 	return cmd
 }
 
 // run executes the root command using activePipeline for filtering,
 // transforming, and expectation checks.
 func run(cmd *cobra.Command, opts options, activePipeline pipeline.Pipeline) error {
-	if !opts.dryRun && opts.output == "" {
-		return fmt.Errorf("--output is required (or pass --dry-run)")
+	expect, reportName, err := resolveExpectAndReportName(cmd, opts)
+	if err != nil {
+		return err
 	}
+	outputPath := resolveOutputPath(opts)
 	inputDir, err := resolveInputDir(cmd, opts)
 	if err != nil {
 		return err
@@ -94,13 +96,14 @@ func run(cmd *cobra.Command, opts options, activePipeline pipeline.Pipeline) err
 	}
 	current := seedgen.CurrentState(records)
 	kept, includedKeys, excludedKeys, ignoredKeys := classifyKeys(current, include, exclude)
-	if err := activePipeline.CheckExpected(opts.expect, kept); err != nil {
+	if err := activePipeline.CheckExpected(expect, kept); err != nil {
 		return err
 	}
-	if err := writeKeyReports(opts.logs, includedKeys, excludedKeys, ignoredKeys); err != nil {
+	reportsDir := resolveReportsDir(opts, reportName)
+	if err := writeKeyReports(reportsDir, includedKeys, excludedKeys, ignoredKeys); err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "%d total read\nwrote to %s:\n- %d included\n- %d excluded\n- %d ignored\n", len(records), opts.logs, len(includedKeys), len(excludedKeys), len(ignoredKeys))
+	fmt.Fprintf(os.Stderr, "%d total read\nwrote reports to %s:\n- %d included\n- %d excluded\n- %d ignored\n", len(records), reportsDir, len(includedKeys), len(excludedKeys), len(ignoredKeys))
 
 	if opts.dryRun {
 		if opts.verify != "" {
@@ -113,17 +116,54 @@ func run(cmd *cobra.Command, opts options, activePipeline pipeline.Pipeline) err
 		return nil
 	}
 
-	f, err := os.Create(opts.output)
+	f, err := os.Create(outputPath)
 	if err != nil {
-		return fmt.Errorf("create output %s: %w", opts.output, err)
+		return fmt.Errorf("create output %s: %w", outputPath, err)
 	}
 	defer f.Close()
 	writeOpts := seedgen.WriteOptions{LeaderID: opts.leaderID, Transforms: activePipeline.Transforms, VerifyComponents: opts.verify}
 	if err := seedgen.WriteSnapshot(f, kept, writeOpts); err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "wrote %s\n", opts.output)
+	fmt.Fprintf(os.Stderr, "wrote %s\n", outputPath)
 	return nil
+}
+
+// resolveExpectAndReportName returns the --expect value and report directory
+// name implied by the CLI flags. The seed name drives --expect for the built-in
+// published seed names; custom names require an explicit --expect value.
+func resolveExpectAndReportName(cmd *cobra.Command, opts options) (expect, reportName string, err error) {
+	expectSet := cmd.Flags().Changed("expect")
+	if opts.name == "" {
+		if !opts.dryRun {
+			return "", "", fmt.Errorf("--name is required")
+		}
+		if !expectSet {
+			return "", "", fmt.Errorf("--expect is required when --dry-run is used without --name")
+		}
+		return opts.expect, opts.expect, nil
+	}
+	if filepath.Base(opts.name) != opts.name {
+		return "", "", fmt.Errorf("--name must be a file name, not a path")
+	}
+	if expectSet {
+		return opts.expect, opts.name, nil
+	}
+	if opts.name == "recommended" || opts.name == "minimal" {
+		return opts.name, opts.name, nil
+	}
+	return "", "", fmt.Errorf("--expect is required when --name is not recommended or minimal")
+}
+
+// resolveOutputPath returns the snapshot path derived from the output directory
+// and seed name.
+func resolveOutputPath(opts options) string {
+	return filepath.Join(opts.output, opts.name+".netsy")
+}
+
+// resolveReportsDir returns the directory used for key reports.
+func resolveReportsDir(opts options, reportName string) string {
+	return filepath.Join(opts.output, "reports", reportName)
 }
 
 // classifyKeys partitions current records according to the include and exclude
@@ -151,11 +191,11 @@ func classifyKeys(records []*datafile.Record, include, exclude *pipeline.Rules) 
 	return kept, includedKeys, excludedKeys, ignoredKeys
 }
 
-// writeKeyReports writes the three key log files that explain how the current
+// writeKeyReports writes the three key report files that explain how the current
 // record set was classified by the include and exclude rules.
 func writeKeyReports(dir string, includedKeys, excludedKeys, ignoredKeys []string) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("create key logs directory %s: %w", dir, err)
+		return fmt.Errorf("create key reports directory %s: %w", dir, err)
 	}
 	for name, keys := range map[string][]string{
 		"included.txt": includedKeys,
