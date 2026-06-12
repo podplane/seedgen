@@ -87,6 +87,52 @@ func TestWriteSnapshotRenumbersAndNormalises(t *testing.T) {
 	}
 }
 
+// TestWriteSnapshotEmitsInitialNetsyRecordAtRevisionOne verifies that Netsy's
+// internal bootstrap record is always first after renumbering, even if it was
+// not first in the filtered input.
+func TestWriteSnapshotEmitsInitialNetsyRecordAtRevisionOne(t *testing.T) {
+	t.Parallel()
+	input := []*datafile.Record{
+		{Revision: 10, Key: []byte("/registry/namespaces/default"), Value: []byte("namespace")},
+		{Revision: 1, Key: []byte(initialNetsyKey), Value: []byte{}},
+		{Revision: 11, Key: []byte("/registry/services/specs/default/kubernetes"), Value: []byte("service")},
+	}
+
+	var buf bytes.Buffer
+	if err := WriteSnapshot(&buf, input, WriteOptions{LeaderID: "seed"}); err != nil {
+		t.Fatalf("WriteSnapshot: %v", err)
+	}
+
+	got, err := datafile.ReadSnapshot(&buf)
+	if err != nil {
+		t.Fatalf("ReadSnapshot: %v", err)
+	}
+	if string(got[0].Key) != initialNetsyKey {
+		t.Fatalf("first key = %q, want %q", got[0].Key, initialNetsyKey)
+	}
+	if got[0].Revision != 1 || got[0].CreateRevision != 1 {
+		t.Fatalf("initial record revisions = %d/%d, want 1/1", got[0].Revision, got[0].CreateRevision)
+	}
+	if string(got[1].Key) != "/registry/namespaces/default" || string(got[2].Key) != "/registry/services/specs/default/kubernetes" {
+		t.Fatalf("non-initial record order = %q, %q", got[1].Key, got[2].Key)
+	}
+}
+
+func TestWriteSnapshotRejectsDuplicateInitialNetsyRecords(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	err := WriteSnapshot(&buf, []*datafile.Record{
+		{Revision: 1, Key: []byte(initialNetsyKey)},
+		{Revision: 2, Key: []byte(initialNetsyKey)},
+	}, WriteOptions{LeaderID: "seed"})
+	if err == nil {
+		t.Fatal("WriteSnapshot succeeded with duplicate initial Netsy records")
+	}
+	if !strings.Contains(err.Error(), "multiple _netsy records") {
+		t.Fatalf("WriteSnapshot error = %v, want duplicate _netsy error", err)
+	}
+}
+
 // TestWriteSnapshotAppliesSeedTransforms verifies JSON seed transforms for
 // status reset and service dual-stack defaults.
 func TestWriteSnapshotAppliesSeedTransforms(t *testing.T) {

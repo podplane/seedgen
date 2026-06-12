@@ -35,6 +35,9 @@ func TestPipeline(t *testing.T) {
 	if !include.Matches("/registry/services/specs/default/kubernetes") {
 		t.Fatal("default include rules should match the Kubernetes Service spec")
 	}
+	if !include.Matches("_netsy") {
+		t.Fatal("default include rules should match Netsy's initial record")
+	}
 	if !exclude.Matches("/registry/events/default/example") {
 		t.Fatal("default exclude rules should match Kubernetes events")
 	}

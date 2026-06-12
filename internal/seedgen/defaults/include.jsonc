@@ -10,7 +10,11 @@
 // seedgen against a freshly-bootstrapped local cluster and inspecting the
 // included.txt, excluded.txt, and ignored.txt key reports.
 {
-  "keys": [],
+  "keys": [
+    // Netsy's initial internal record at revision 1. Keep it so seeds preserve
+    // the same bootstrap shape as a cluster initialised directly by Netsy.
+    "_netsy"
+  ],
   "prefixes": [
     // Core Kubernetes
     "/registry/namespaces/",

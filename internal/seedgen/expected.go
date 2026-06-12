@@ -19,6 +19,7 @@ type expectedProfile struct {
 var expectedProfiles = map[string]expectedProfile{
 	"minimal": {
 		keys: []string{
+			"_netsy",
 			"/registry/source.toolkit.fluxcd.io/gitrepositories/platform-components/podplane-components",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-components/platform-components",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/cilium-crds",
@@ -32,6 +33,7 @@ var expectedProfiles = map[string]expectedProfile{
 	},
 	"recommended": {
 		keys: []string{
+			"_netsy",
 			"/registry/source.toolkit.fluxcd.io/gitrepositories/platform-components/podplane-components",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-components/platform-components",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/agent-sandbox-crds",
