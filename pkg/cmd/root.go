@@ -104,8 +104,12 @@ func run(cmd *cobra.Command, opts options, activePipeline pipeline.Pipeline) err
 	}
 	fmt.Fprintf(os.Stderr, "%d total read\nwrote reports to %s:\n- %d included\n- %d excluded\n- %d ignored\n", len(records), reportsDir, len(includedKeys), len(excludedKeys), len(ignoredKeys))
 	writeOpts := seedgen.WriteOptions{LeaderID: opts.leaderID, Transforms: activePipeline.Transforms, VerifyComponents: opts.verify}
+	prepared, err := seedgen.PrepareRecordsForWrite(kept, writeOpts)
+	if err != nil {
+		return err
+	}
 	recordsDir := resolveRecordsDir(opts, reportName)
-	if err := seedgen.WriteRecordFiles(recordsDir, kept, writeOpts); err != nil {
+	if err := seedgen.WritePreparedRecordFiles(recordsDir, prepared); err != nil {
 		return err
 	}
 	fmt.Fprintf(os.Stderr, "wrote record files to %s\n", recordsDir)
@@ -120,7 +124,7 @@ func run(cmd *cobra.Command, opts options, activePipeline pipeline.Pipeline) err
 		return fmt.Errorf("create output %s: %w", outputPath, err)
 	}
 	defer f.Close()
-	if err := seedgen.WriteSnapshot(f, kept, writeOpts); err != nil {
+	if err := seedgen.WritePreparedSnapshot(f, prepared, opts.leaderID); err != nil {
 		return err
 	}
 	fmt.Fprintf(os.Stderr, "wrote %s\n", outputPath)

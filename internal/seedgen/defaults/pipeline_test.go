@@ -103,10 +103,60 @@ func TestTransformsNormalizeWorkloadImages(t *testing.T) {
 	}
 }
 
+func TestNormalizeServiceClusterIPs(t *testing.T) {
+	nextGeneratedServiceIP.Store(firstGeneratedServiceIP)
+	cases := []struct {
+		key        string
+		namespace  string
+		name       string
+		clusterIP  string
+		wantIP     string
+		wantIPList []string
+	}{
+		{"/registry/services/specs/platform-alpha/alpha", "platform-alpha", "alpha", "198.18.5.149", "198.18.0.2", []string{"198.18.0.2"}},
+		{"/registry/services/specs/platform-zeta/zeta", "platform-zeta", "zeta", "198.19.202.64", "198.18.0.3", []string{"198.18.0.3"}},
+		{"/registry/services/specs/default/kubernetes", "default", "kubernetes", "198.18.0.1", "198.18.0.1", []string{"198.18.0.1", "fdc6::1"}},
+		{"/registry/services/specs/platform-headless/headless", "platform-headless", "headless", "None", "None", []string{"None"}},
+		{"/registry/services/specs/platform-coredns/platform-coredns", "platform-coredns", "platform-coredns", "198.19.255.254", "198.19.255.254", []string{"198.19.255.254", "fdc6::ffff"}},
+	}
+	for _, tc := range cases {
+		got, err := Transforms.TransformValue([]byte(tc.key), serviceValueFixture(tc.namespace, tc.name, tc.clusterIP))
+		if err != nil {
+			t.Fatalf("TransformValue(%s): %v", tc.key, err)
+		}
+		assertServiceClusterIP(t, got, tc.wantIP, tc.wantIPList)
+	}
+}
+
 // containerImage returns one image field from a decoded JSON pod spec fixture.
 func containerImage(t *testing.T, podSpec map[string]any, field string, index int) string {
 	t.Helper()
 	items := podSpec[field].([]any)
 	container := items[index].(map[string]any)
 	return container["image"].(string)
+}
+
+func serviceValueFixture(namespace, name, clusterIP string) []byte {
+	return []byte(`{"apiVersion":"v1","kind":"Service","metadata":{"namespace":"` + namespace + `","name":"` + name + `"},"spec":{"clusterIP":"` + clusterIP + `","clusterIPs":["` + clusterIP + `"],"ipFamilies":["IPv4","IPv6"],"ipFamilyPolicy":"PreferDualStack"}}`)
+}
+
+func assertServiceClusterIP(t *testing.T, value []byte, wantIP string, wantIPList []string) {
+	t.Helper()
+	var service map[string]any
+	if err := json.Unmarshal(value, &service); err != nil {
+		t.Fatalf("decode service: %v", err)
+	}
+	spec := service["spec"].(map[string]any)
+	if got := spec["clusterIP"]; got != wantIP {
+		t.Fatalf("clusterIP = %v, want %s", got, wantIP)
+	}
+	clusterIPs := spec["clusterIPs"].([]any)
+	if len(clusterIPs) != len(wantIPList) {
+		t.Fatalf("clusterIPs = %#v, want %#v", clusterIPs, wantIPList)
+	}
+	for i, want := range wantIPList {
+		if clusterIPs[i] != want {
+			t.Fatalf("clusterIPs = %#v, want %#v", clusterIPs, wantIPList)
+		}
+	}
 }

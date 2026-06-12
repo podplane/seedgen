@@ -32,11 +32,17 @@ type WriteOptions struct {
 // a Netsy snapshot file. The renumbering is required for Netsy's bootstrap
 // integrity check, which enforces COUNT(records) == MAX(revision).
 func WriteSnapshot(w io.Writer, records []*datafile.Record, opts WriteOptions) error {
-	out, err := prepareRecordsForWrite(records, opts)
+	out, err := PrepareRecordsForWrite(records, opts)
 	if err != nil {
 		return err
 	}
-	if err := datafile.WriteSnapshot(w, out, opts.LeaderID); err != nil {
+	return WritePreparedSnapshot(w, out, opts.LeaderID)
+}
+
+// WritePreparedSnapshot writes already-prepared seed records as a Netsy
+// snapshot file.
+func WritePreparedSnapshot(w io.Writer, records []*datafile.Record, leaderID string) error {
+	if err := datafile.WriteSnapshot(w, records, leaderID); err != nil {
 		return fmt.Errorf("write snapshot: %w", err)
 	}
 	return nil
@@ -45,18 +51,25 @@ func WriteSnapshot(w io.Writer, records []*datafile.Record, opts WriteOptions) e
 // WriteRecordFiles writes one JSON file per emitted seed record under dir.
 // Each file is named from the record key with slashes replaced by underscores.
 func WriteRecordFiles(dir string, records []*datafile.Record, opts WriteOptions) error {
-	out, err := prepareRecordsForWrite(records, opts)
+	out, err := PrepareRecordsForWrite(records, opts)
 	if err != nil {
 		return err
 	}
+	return WritePreparedRecordFiles(dir, out)
+}
+
+// WritePreparedRecordFiles writes one JSON file per already-prepared seed
+// record under dir. Each file is named from the record key with slashes
+// replaced by underscores.
+func WritePreparedRecordFiles(dir string, records []*datafile.Record) error {
 	if err := removeExistingRecordFiles(dir); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create record files directory %s: %w", dir, err)
 	}
-	seen := make(map[string]string, len(out))
-	for _, record := range out {
+	seen := make(map[string]string, len(records))
+	for _, record := range records {
 		key := string(record.Key)
 		name := recordFileNameForKey(key)
 		if existing, ok := seen[name]; ok {
@@ -90,9 +103,9 @@ func WriteRecordFiles(dir string, records []*datafile.Record, opts WriteOptions)
 	return nil
 }
 
-// prepareRecordsForWrite orders, transforms, verifies, renumbers, and
+// PrepareRecordsForWrite orders, transforms, verifies, renumbers, and
 // normalises records into the exact records emitted by seed writers.
-func prepareRecordsForWrite(records []*datafile.Record, opts WriteOptions) ([]*datafile.Record, error) {
+func PrepareRecordsForWrite(records []*datafile.Record, opts WriteOptions) ([]*datafile.Record, error) {
 	ordered, err := orderRecordsForWrite(records)
 	if err != nil {
 		return nil, err

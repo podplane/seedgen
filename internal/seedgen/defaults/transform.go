@@ -5,13 +5,27 @@
 package defaults
 
 import (
+	"fmt"
+	"net/netip"
 	"slices"
+	"sync/atomic"
 
 	"github.com/podplane/seedgen/pkg/pipeline"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
+
+const (
+	firstGeneratedServiceIP = 2
+	lastGeneratedServiceIP  = 254
+)
+
+var nextGeneratedServiceIP atomic.Uint64
+
+func init() {
+	nextGeneratedServiceIP.Store(firstGeneratedServiceIP)
+}
 
 // Transforms is the built-in Podplane seed transform table.
 var Transforms = pipeline.Transforms{
@@ -23,7 +37,7 @@ var Transforms = pipeline.Transforms{
 	pipeline.PrefixTransform{Prefix: "/registry/deployments/", APIVersion: "apps/v1", Kind: "Deployment", JSONTransforms: []pipeline.JSONTransform{resetAvailableCondition, normalizePodTemplateSpecImages}, ProtobufTransforms: []pipeline.ProtobufTransform{resetDeploymentAvailableCondition, normalizeTypedPodTemplateSpecImages}},
 	pipeline.PrefixTransform{Prefix: "/registry/daemonsets/", APIVersion: "apps/v1", Kind: "DaemonSet", JSONTransforms: []pipeline.JSONTransform{resetDaemonSetAvailability, normalizePodTemplateSpecImages}, ProtobufTransforms: []pipeline.ProtobufTransform{resetTypedDaemonSetAvailability, normalizeTypedPodTemplateSpecImages}},
 	pipeline.PrefixTransform{Prefix: "/registry/statefulsets/", APIVersion: "apps/v1", Kind: "StatefulSet", JSONTransforms: []pipeline.JSONTransform{normalizePodTemplateSpecImages}, ProtobufTransforms: []pipeline.ProtobufTransform{normalizeTypedPodTemplateSpecImages}},
-	pipeline.PrefixTransform{Prefix: "/registry/services/specs/", APIVersion: "v1", Kind: "Service", JSONTransforms: []pipeline.JSONTransform{preferDualStackService}, ProtobufTransforms: []pipeline.ProtobufTransform{preferDualStackServiceObject}},
+	pipeline.PrefixTransform{Prefix: "/registry/services/specs/", APIVersion: "v1", Kind: "Service", JSONTransforms: []pipeline.JSONTransform{preferDualStackService, normalizeGeneratedServiceClusterIP}, ProtobufTransforms: []pipeline.ProtobufTransform{preferDualStackServiceObject, normalizeGeneratedServiceClusterIPObject}},
 	pipeline.KeyTransform{Key: "/registry/services/specs/default/kubernetes", JSONTransforms: []pipeline.JSONTransform{setServiceDualStack("198.18.0.1", "fdc6::1")}, ProtobufTransforms: []pipeline.ProtobufTransform{setServiceDualStackObject("198.18.0.1", "fdc6::1")}},
 	pipeline.KeyTransform{Key: "/registry/services/specs/platform-coredns/platform-coredns", JSONTransforms: []pipeline.JSONTransform{setServiceDualStack("198.19.255.254", "fdc6::ffff")}, ProtobufTransforms: []pipeline.ProtobufTransform{setServiceDualStackObject("198.19.255.254", "fdc6::ffff")}},
 }
@@ -206,6 +220,72 @@ func preferDualStackService(obj map[string]any) bool {
 func preferDualStackServiceObject(obj runtime.Object) bool {
 	service := obj.(*corev1.Service)
 	return setTypedServiceDualStackFields(&service.Spec, "", "")
+}
+
+// normalizeGeneratedServiceClusterIP replaces a generated JSON Service IPv4
+// cluster IP with the next deterministic seed IP.
+func normalizeGeneratedServiceClusterIP(obj map[string]any) bool {
+	metadata, ok := obj["metadata"].(map[string]any)
+	if !ok {
+		return false
+	}
+	namespace, _ := metadata["namespace"].(string)
+	name, _ := metadata["name"].(string)
+	if namespace == "default" && name == "kubernetes" {
+		return false
+	}
+	if namespace == "platform-coredns" && name == "platform-coredns" {
+		return false
+	}
+	spec, ok := obj["spec"].(map[string]any)
+	if !ok {
+		return false
+	}
+	clusterIP, ok := spec["clusterIP"].(string)
+	addr, err := netip.ParseAddr(clusterIP)
+	if !ok || err != nil || !addr.Unmap().Is4() {
+		return false
+	}
+	ip := nextGeneratedServiceClusterIP()
+	if spec["clusterIP"] == ip && stringSliceEqual(spec["clusterIPs"], []string{ip}) {
+		return false
+	}
+	spec["clusterIP"] = ip
+	spec["clusterIPs"] = []string{ip}
+	return true
+}
+
+// normalizeGeneratedServiceClusterIPObject replaces a generated typed Service
+// IPv4 cluster IP with the next deterministic seed IP.
+func normalizeGeneratedServiceClusterIPObject(obj runtime.Object) bool {
+	service := obj.(*corev1.Service)
+	if service.Namespace == "default" && service.Name == "kubernetes" {
+		return false
+	}
+	if service.Namespace == "platform-coredns" && service.Name == "platform-coredns" {
+		return false
+	}
+	addr, err := netip.ParseAddr(service.Spec.ClusterIP)
+	if err != nil || !addr.Unmap().Is4() {
+		return false
+	}
+	ip := nextGeneratedServiceClusterIP()
+	if service.Spec.ClusterIP == ip && slices.Equal(service.Spec.ClusterIPs, []string{ip}) {
+		return false
+	}
+	service.Spec.ClusterIP = ip
+	service.Spec.ClusterIPs = []string{ip}
+	return true
+}
+
+// nextGeneratedServiceClusterIP returns the next deterministic generated
+// Service IPv4 address in the Podplane seed range.
+func nextGeneratedServiceClusterIP() string {
+	next := nextGeneratedServiceIP.Add(1) - 1
+	if next > lastGeneratedServiceIP {
+		panic(fmt.Sprintf("too many generated Service cluster IPs: exceeded 198.18.0.%d", lastGeneratedServiceIP))
+	}
+	return fmt.Sprintf("198.18.0.%d", next)
 }
 
 // setServiceDualStack returns a JSON Service transform for services whose
