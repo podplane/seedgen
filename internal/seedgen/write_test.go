@@ -338,26 +338,18 @@ func TestWriteSnapshotAppliesSeedTransforms(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadSnapshot: %v", err)
 	}
-	if conditionStatus(t, got[0].Value, "Ready") != "False" {
-		t.Fatalf("Certificate Ready status = %s, want False", conditionStatus(t, got[0].Value, "Ready"))
-	}
-	if conditionStatus(t, got[0].Value, "Issuing") != "False" {
-		t.Fatalf("Certificate Issuing status = %s, want unchanged False", conditionStatus(t, got[0].Value, "Issuing"))
-	}
-	if conditionStatus(t, got[1].Value, "Ready") != "False" {
-		t.Fatalf("HelmRelease Ready status = %s, want False", conditionStatus(t, got[1].Value, "Ready"))
-	}
-	if conditionStatus(t, got[2].Value, "Ready") != "False" {
-		t.Fatalf("CertificateRequestPolicy Ready status = %s, want False", conditionStatus(t, got[2].Value, "Ready"))
-	}
-	if conditionStatus(t, got[3].Value, "Available") != "False" {
-		t.Fatalf("Deployment Available status = %s, want False", conditionStatus(t, got[3].Value, "Available"))
-	}
-	var daemonSet map[string]any
-	decodeValue(t, got[4].Value, &daemonSet)
-	status := daemonSet["status"].(map[string]any)
-	if status["numberReady"] != float64(0) || status["numberAvailable"] != float64(0) {
-		t.Fatalf("DaemonSet status = %#v, want ready/available counters zero", status)
+	for i, key := range []string{
+		"Certificate",
+		"HelmRelease",
+		"CertificateRequestPolicy",
+		"Deployment",
+		"DaemonSet",
+	} {
+		var obj map[string]any
+		decodeValue(t, got[i].Value, &obj)
+		if _, ok := obj["status"]; ok {
+			t.Fatalf("%s status present after seed transform: %s", key, got[i].Value)
+		}
 	}
 	var service map[string]any
 	decodeValue(t, got[5].Value, &service)
@@ -379,8 +371,13 @@ func TestWriteSnapshotAppliesSeedTransforms(t *testing.T) {
 	if len(genericClusterIPs) != 1 || genericClusterIPs[0] != "198.18.10.10" {
 		t.Fatalf("Generic Service clusterIPs = %#v, want original cluster IP only", genericClusterIPs)
 	}
-	if string(got[7].Value) != string(input[7].Value) {
-		t.Fatalf("unrelated resource value changed: %s", got[7].Value)
+	var unrelated map[string]any
+	decodeValue(t, got[7].Value, &unrelated)
+	if _, ok := unrelated["status"]; ok {
+		t.Fatalf("unrelated Kubernetes-style resource status present after seed transform: %s", got[7].Value)
+	}
+	if unrelated["apiVersion"] != "example.io/v1" || unrelated["kind"] != "Certificate" {
+		t.Fatalf("unrelated resource identity changed: %s", got[7].Value)
 	}
 }
 
@@ -449,13 +446,13 @@ func TestWriteSnapshotEmitsJSONForKubernetesProtobufSeedTransforms(t *testing.T)
 	if bytes.HasPrefix(got[0].Value, kubernetesProtobufPrefix) {
 		t.Fatalf("Deployment value remained Kubernetes protobuf, want JSON")
 	}
-	if deployment.Status.Conditions[0].Status != corev1.ConditionFalse {
-		t.Fatalf("Deployment Available status = %s, want False", deployment.Status.Conditions[0].Status)
+	if len(deployment.Status.Conditions) != 0 {
+		t.Fatalf("Deployment status conditions = %#v, want empty status", deployment.Status.Conditions)
 	}
 	var daemonSet appsv1.DaemonSet
 	decodeValue(t, got[1].Value, &daemonSet)
-	if daemonSet.Status.NumberReady != 0 || daemonSet.Status.NumberAvailable != 0 {
-		t.Fatalf("DaemonSet status = %#v, want ready/available counters zero", daemonSet.Status)
+	if daemonSet.Status.NumberReady != 0 || daemonSet.Status.NumberAvailable != 0 || daemonSet.Status.DesiredNumberScheduled != 0 {
+		t.Fatalf("DaemonSet status = %#v, want empty status", daemonSet.Status)
 	}
 	var service corev1.Service
 	decodeValue(t, got[2].Value, &service)
@@ -520,21 +517,31 @@ func TestWriteSnapshotAllowsNonJSONUntransformedValue(t *testing.T) {
 	}
 }
 
-// conditionStatus returns the status for a named condition in a JSON object.
-func conditionStatus(t *testing.T, value []byte, conditionType string) string {
-	t.Helper()
-	var obj map[string]any
-	decodeValue(t, value, &obj)
-	status := obj["status"].(map[string]any)
-	conditions := status["conditions"].([]any)
-	for _, item := range conditions {
-		condition := item.(map[string]any)
-		if condition["type"] == conditionType {
-			return condition["status"].(string)
-		}
+func TestWriteSnapshotPreservesOpaqueJSONStatusFields(t *testing.T) {
+	t.Parallel()
+	input := []*datafile.Record{
+		{
+			Revision: 1,
+			Key:      []byte("/registry/secrets/platform-components/sh.helm.release.v1.platform-components.v1"),
+			Value: mustJSON(t, map[string]any{
+				"status": "deployed",
+				"data":   map[string]any{"release": "opaque"},
+			}),
+		},
 	}
-	t.Fatalf("condition %s not found in %s", conditionType, value)
-	return ""
+	var buf bytes.Buffer
+	if err := WriteSnapshot(&buf, input, WriteOptions{LeaderID: "seed"}); err != nil {
+		t.Fatalf("WriteSnapshot: %v", err)
+	}
+	got, err := datafile.ReadSnapshot(&buf)
+	if err != nil {
+		t.Fatalf("ReadSnapshot: %v", err)
+	}
+	var obj map[string]any
+	decodeValue(t, got[0].Value, &obj)
+	if obj["status"] != "deployed" {
+		t.Fatalf("status = %#v, want opaque status preserved", obj["status"])
+	}
 }
 
 // decodeValue decodes a JSON record value into dst for test assertions.

@@ -6,6 +6,7 @@ package seedgen
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -39,7 +40,11 @@ func transformValue(transforms pipeline.Transforms, key, value []byte) ([]byte, 
 	if bytes.HasPrefix(value, kubernetesProtobufPrefix) {
 		return transformKubernetesProtobufValue(transforms, recordKey, value)
 	}
-	return transforms.TransformValue(key, value)
+	transformed, err := transforms.TransformValue(key, value)
+	if err != nil {
+		return nil, err
+	}
+	return clearKubernetesStatus(transformed)
 }
 
 // transformKubernetesProtobufValue applies seed transforms to Kubernetes
@@ -72,7 +77,37 @@ func transformKubernetesProtobufValue(transforms pipeline.Transforms, key string
 	if err != nil {
 		return nil, fmt.Errorf("encode transformed value for %s as Kubernetes JSON: %w", key, err)
 	}
-	return encoded, nil
+	return clearKubernetesStatus(encoded)
+}
+
+// clearKubernetesStatus removes top-level status from JSON objects that have
+// Kubernetes API object identity fields (apiVersion and kind). Seed records
+// should contain desired/static object state; controller and apiserver observed
+// status is recomputed after bootstrap. Non-JSON values, JSON scalars/arrays,
+// and JSON objects without apiVersion+kind are left untouched so opaque payloads
+// such as Helm release Secret data are not modified.
+func clearKubernetesStatus(value []byte) ([]byte, error) {
+	var obj map[string]any
+	if err := json.Unmarshal(value, &obj); err != nil {
+		return value, nil
+	}
+	if _, ok := obj["apiVersion"].(string); !ok {
+		return value, nil
+	}
+	if _, ok := obj["kind"].(string); !ok {
+		return value, nil
+	}
+	if _, ok := obj["status"]; !ok {
+		return value, nil
+	}
+	delete(obj, "status")
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(obj); err != nil {
+		return nil, fmt.Errorf("encode status-stripped Kubernetes object: %w", err)
+	}
+	return bytes.TrimSuffix(buf.Bytes(), []byte("\n")), nil
 }
 
 // getKubernetesCodecs returns the minimal Kubernetes codecs needed to decode
