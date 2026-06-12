@@ -324,7 +324,15 @@ func TestWriteSnapshotAppliesSeedTransforms(t *testing.T) {
 			Value: mustJSON(t, map[string]any{
 				"apiVersion": "example.io/v1",
 				"kind":       "Certificate",
-				"status":     map[string]any{"conditions": []any{map[string]any{"type": "Ready", "status": "True"}}},
+				"metadata": map[string]any{
+					"creationTimestamp": "2026-06-12T07:13:24Z",
+					"managedFields":     []any{map[string]any{"manager": "kube-apiserver"}},
+					"annotations": map[string]any{
+						"keep": "true",
+						"kubectl.kubernetes.io/last-applied-configuration": "{}",
+					},
+				},
+				"status": map[string]any{"conditions": []any{map[string]any{"type": "Ready", "status": "True"}}},
 			}),
 		},
 	}
@@ -378,6 +386,20 @@ func TestWriteSnapshotAppliesSeedTransforms(t *testing.T) {
 	}
 	if unrelated["apiVersion"] != "example.io/v1" || unrelated["kind"] != "Certificate" {
 		t.Fatalf("unrelated resource identity changed: %s", got[7].Value)
+	}
+	unrelatedMetadata := unrelated["metadata"].(map[string]any)
+	if unrelatedMetadata["creationTimestamp"] != normalisedCreationTimestamp {
+		t.Fatalf("creationTimestamp = %v, want %s", unrelatedMetadata["creationTimestamp"], normalisedCreationTimestamp)
+	}
+	if _, ok := unrelatedMetadata["managedFields"]; ok {
+		t.Fatalf("managedFields present after seed transform: %s", got[7].Value)
+	}
+	unrelatedAnnotations := unrelatedMetadata["annotations"].(map[string]any)
+	if unrelatedAnnotations["keep"] != "true" {
+		t.Fatalf("annotation keep = %v, want true", unrelatedAnnotations["keep"])
+	}
+	if _, ok := unrelatedAnnotations["kubectl.kubernetes.io/last-applied-configuration"]; ok {
+		t.Fatalf("last-applied annotation present after seed transform: %s", got[7].Value)
 	}
 }
 

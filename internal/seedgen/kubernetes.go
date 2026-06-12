@@ -33,6 +33,10 @@ var (
 	kubernetesCodecsErr      error
 )
 
+// standard timestamp to reset date/times to in seed records.
+// why pick a boring date when you can use the kubernetes v1.0.0 tag timestamp?
+const normalisedCreationTimestamp = "2015-07-11T04:02:31Z"
+
 // transformValue applies seed transforms to either JSON or Kubernetes protobuf
 // record values.
 func transformValue(transforms pipeline.Transforms, key, value []byte) ([]byte, error) {
@@ -44,7 +48,7 @@ func transformValue(transforms pipeline.Transforms, key, value []byte) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	return clearKubernetesStatus(transformed)
+	return normaliseKubernetesObjectMetadata(transformed)
 }
 
 // transformKubernetesProtobufValue applies seed transforms to Kubernetes
@@ -77,16 +81,16 @@ func transformKubernetesProtobufValue(transforms pipeline.Transforms, key string
 	if err != nil {
 		return nil, fmt.Errorf("encode transformed value for %s as Kubernetes JSON: %w", key, err)
 	}
-	return clearKubernetesStatus(encoded)
+	return normaliseKubernetesObjectMetadata(encoded)
 }
 
-// clearKubernetesStatus removes top-level status from JSON objects that have
-// Kubernetes API object identity fields (apiVersion and kind). Seed records
-// should contain desired/static object state; controller and apiserver observed
-// status is recomputed after bootstrap. Non-JSON values, JSON scalars/arrays,
-// and JSON objects without apiVersion+kind are left untouched so opaque payloads
-// such as Helm release Secret data are not modified.
-func clearKubernetesStatus(value []byte) ([]byte, error) {
+// normaliseKubernetesObjectMetadata removes or resets volatile fields from JSON
+// objects that have Kubernetes API object identity fields (apiVersion and kind).
+// Seed records should contain desired/static object state; controller and
+// apiserver observed fields are recomputed after bootstrap. Non-JSON values,
+// JSON scalars/arrays, and JSON objects without apiVersion+kind are left
+// untouched so opaque payloads such as Helm release Secret data are not modified.
+func normaliseKubernetesObjectMetadata(value []byte) ([]byte, error) {
 	var obj map[string]any
 	if err := json.Unmarshal(value, &obj); err != nil {
 		return value, nil
@@ -97,17 +101,49 @@ func clearKubernetesStatus(value []byte) ([]byte, error) {
 	if _, ok := obj["kind"].(string); !ok {
 		return value, nil
 	}
-	if _, ok := obj["status"]; !ok {
+	changed := normaliseObjectMetadata(obj)
+	if _, ok := obj["status"]; ok {
+		delete(obj, "status")
+		changed = true
+	}
+	if !changed {
 		return value, nil
 	}
-	delete(obj, "status")
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(obj); err != nil {
-		return nil, fmt.Errorf("encode status-stripped Kubernetes object: %w", err)
+		return nil, fmt.Errorf("encode normalised Kubernetes object: %w", err)
 	}
 	return bytes.TrimSuffix(buf.Bytes(), []byte("\n")), nil
+}
+
+// normaliseObjectMetadata mutates Kubernetes object metadata fields that are
+// expected to vary between seed generation runs and reports whether it changed
+// the object.
+func normaliseObjectMetadata(obj map[string]any) bool {
+	metadata, ok := obj["metadata"].(map[string]any)
+	if !ok {
+		return false
+	}
+	var changed bool
+	if metadata["creationTimestamp"] != normalisedCreationTimestamp {
+		metadata["creationTimestamp"] = normalisedCreationTimestamp
+		changed = true
+	}
+	if _, ok := metadata["managedFields"]; ok {
+		delete(metadata, "managedFields")
+		changed = true
+	}
+	annotations, ok := metadata["annotations"].(map[string]any)
+	if !ok {
+		return changed
+	}
+	if _, ok := annotations["kubectl.kubernetes.io/last-applied-configuration"]; ok {
+		delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
+		changed = true
+	}
+	return changed
 }
 
 // getKubernetesCodecs returns the minimal Kubernetes codecs needed to decode
