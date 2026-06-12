@@ -42,14 +42,16 @@ local cluster.
 The key counts are printed to stderr. The included, excluded, and ignored keys
 are written to report files under `<output-dir>/reports/<name>/` by default
 (for example, `../seeds/reports/recommended/` for
-`--output ../seeds --name recommended`), and the snapshot itself is written to
-`<output-dir>/<name>.netsy`.
+`--output ../seeds --name recommended`). The records written to the seed are
+also written as JSON files under `<output-dir>/records/<name>/`, with each file
+named from the record key by replacing `/` with `_`. The snapshot itself is
+written to `<output-dir>/<name>.netsy`.
 
 | Flag                    | Default       | Description                                                                                           |
 | ----------------------- | ------------- | ----------------------------------------------------------------------------------------------------- |
 | `--cluster`             | `default`     | Local Podplane cluster id; shortcut for `~/.podplane/data/s3/buckets/<id>-netsy`.                     |
 | `--input`               | (unset)       | Directory containing `snapshots/` and `chunks/` (a Netsy bucket root on disk). Overrides `--cluster`. |
-| `--output`              | `.`           | Directory to write the `.netsy` file and key reports.                                                 |
+| `--output`              | `.`           | Directory to write the `.netsy` file, key reports, and per-record JSON files.                          |
 | `--name`                | (required)    | Seed name used for `<name>.netsy` and `reports/<name>/`. Required unless `--dry-run --expect <value>` is used. |
 | `--leader-id`           | `seed`        | `LeaderID` stamped on the output snapshot.                                                            |
 | `--include`             | (embedded)    | Path to a JSONC include file overriding the pipeline default.                                         |

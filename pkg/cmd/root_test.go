@@ -136,3 +136,14 @@ func TestResolveReportsDir(t *testing.T) {
 		t.Fatalf("resolveReportsDir = %q, want %q", got, want)
 	}
 }
+
+// TestResolveRecordsDir verifies that record JSON files are grouped under the
+// output directory by report name.
+func TestResolveRecordsDir(t *testing.T) {
+	t.Parallel()
+	got := resolveRecordsDir(options{output: filepath.Join("..", "seeds")}, "recommended")
+	want := filepath.Join("..", "seeds", "records", "recommended")
+	if got != want {
+		t.Fatalf("resolveRecordsDir = %q, want %q", got, want)
+	}
+}

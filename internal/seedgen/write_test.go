@@ -7,6 +7,8 @@ package seedgen
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -130,6 +132,108 @@ func TestWriteSnapshotRejectsDuplicateInitialNetsyRecords(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "multiple _netsy records") {
 		t.Fatalf("WriteSnapshot error = %v, want duplicate _netsy error", err)
+	}
+}
+
+// TestRecordFileNameForKeyReplacesSlashes verifies record keys are made safe
+// for the flat records directory by replacing forward slashes with underscores.
+func TestRecordFileNameForKeyReplacesSlashes(t *testing.T) {
+	t.Parallel()
+	got := recordFileNameForKey("/registry/namespaces/default")
+	want := "_registry_namespaces_default.json"
+	if got != want {
+		t.Fatalf("recordFileNameForKey = %q, want %q", got, want)
+	}
+}
+
+// TestWriteRecordFilesWritesDecodedTransformedValues verifies per-record JSON
+// files contain the same transformed JSON values emitted into seed snapshots.
+func TestWriteRecordFilesWritesDecodedTransformedValues(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	stalePath := filepath.Join(dir, "stale.json")
+	if err := os.WriteFile(stalePath, []byte("{}\n"), 0o600); err != nil {
+		t.Fatalf("write stale record file: %v", err)
+	}
+
+	input := []*datafile.Record{
+		{
+			Revision: 1,
+			Key:      []byte("/registry/widgets/default/widget"),
+			Value: mustJSON(t, map[string]any{
+				"apiVersion": "example.io/v1",
+				"kind":       "Widget",
+				"spec":       map[string]any{"enabled": false},
+			}),
+		},
+	}
+	transforms := pipeline.Transforms{
+		pipeline.KeyTransform{
+			Key: "/registry/widgets/default/widget",
+			JSONTransforms: []pipeline.JSONTransform{func(obj map[string]any) bool {
+				obj["spec"].(map[string]any)["enabled"] = true
+				return true
+			}},
+		},
+	}
+
+	if err := WriteRecordFiles(dir, input, WriteOptions{LeaderID: "seed", Transforms: transforms}); err != nil {
+		t.Fatalf("WriteRecordFiles: %v", err)
+	}
+	if _, err := os.Stat(stalePath); !os.IsNotExist(err) {
+		t.Fatalf("stale record file still exists or stat failed: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "_registry_widgets_default_widget.json"))
+	if err != nil {
+		t.Fatalf("read record file: %v", err)
+	}
+	var got struct {
+		Key   string `json:"key"`
+		Value struct {
+			Spec struct {
+				Enabled bool `json:"enabled"`
+			} `json:"spec"`
+		} `json:"value"`
+	}
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("decode record file: %v", err)
+	}
+	if got.Key != "/registry/widgets/default/widget" {
+		t.Fatalf("key = %q, want /registry/widgets/default/widget", got.Key)
+	}
+	if !got.Value.Spec.Enabled {
+		t.Fatalf("value.spec.enabled = false, want transformed true")
+	}
+}
+
+// TestWriteRecordFilesAllowsEmptyInternalRecordValue verifies Netsy's internal
+// bootstrap record can be represented in JSON record-file output.
+func TestWriteRecordFilesAllowsEmptyInternalRecordValue(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if err := WriteRecordFiles(dir, []*datafile.Record{
+		{Revision: 1, Key: []byte(initialNetsyKey), Value: nil},
+	}, WriteOptions{LeaderID: "seed"}); err != nil {
+		t.Fatalf("WriteRecordFiles: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "_netsy.json"))
+	if err != nil {
+		t.Fatalf("read _netsy record file: %v", err)
+	}
+	var got struct {
+		Key   string `json:"key"`
+		Value any    `json:"value"`
+	}
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("decode _netsy record file: %v", err)
+	}
+	if got.Key != initialNetsyKey {
+		t.Fatalf("key = %q, want %q", got.Key, initialNetsyKey)
+	}
+	if got.Value != nil {
+		t.Fatalf("value = %#v, want nil", got.Value)
 	}
 }
 

@@ -6,7 +6,6 @@ package cmd
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -104,14 +103,14 @@ func run(cmd *cobra.Command, opts options, activePipeline pipeline.Pipeline) err
 		return err
 	}
 	fmt.Fprintf(os.Stderr, "%d total read\nwrote reports to %s:\n- %d included\n- %d excluded\n- %d ignored\n", len(records), reportsDir, len(includedKeys), len(excludedKeys), len(ignoredKeys))
+	writeOpts := seedgen.WriteOptions{LeaderID: opts.leaderID, Transforms: activePipeline.Transforms, VerifyComponents: opts.verify}
+	recordsDir := resolveRecordsDir(opts, reportName)
+	if err := seedgen.WriteRecordFiles(recordsDir, kept, writeOpts); err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stderr, "wrote record files to %s\n", recordsDir)
 
 	if opts.dryRun {
-		if opts.verify != "" {
-			writeOpts := seedgen.WriteOptions{LeaderID: opts.leaderID, Transforms: activePipeline.Transforms, VerifyComponents: opts.verify}
-			if err := seedgen.WriteSnapshot(io.Discard, kept, writeOpts); err != nil {
-				return err
-			}
-		}
 		fmt.Fprintln(os.Stderr, "dry run: skipping snapshot write")
 		return nil
 	}
@@ -121,7 +120,6 @@ func run(cmd *cobra.Command, opts options, activePipeline pipeline.Pipeline) err
 		return fmt.Errorf("create output %s: %w", outputPath, err)
 	}
 	defer f.Close()
-	writeOpts := seedgen.WriteOptions{LeaderID: opts.leaderID, Transforms: activePipeline.Transforms, VerifyComponents: opts.verify}
 	if err := seedgen.WriteSnapshot(f, kept, writeOpts); err != nil {
 		return err
 	}
@@ -164,6 +162,11 @@ func resolveOutputPath(opts options) string {
 // resolveReportsDir returns the directory used for key reports.
 func resolveReportsDir(opts options, reportName string) string {
 	return filepath.Join(opts.output, "reports", reportName)
+}
+
+// resolveRecordsDir returns the directory used for per-record JSON files.
+func resolveRecordsDir(opts options, reportName string) string {
+	return filepath.Join(opts.output, "records", reportName)
 }
 
 // classifyKeys partitions current records according to the include and exclude
