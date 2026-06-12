@@ -38,6 +38,12 @@ func TestPipeline(t *testing.T) {
 	if !include.Matches("_netsy") {
 		t.Fatal("default include rules should match Netsy's initial record")
 	}
+	if !include.Matches("/registry/ipaddresses/198.19.255.254") || !include.Matches("/registry/ipaddresses/fdc6::ffff") {
+		t.Fatal("default include rules should match static service IPAddress records")
+	}
+	if include.Matches("/registry/ipaddresses/198.18.5.149") {
+		t.Fatal("default include rules should not match generated IPAddress records")
+	}
 	if !exclude.Matches("/registry/events/default/example") {
 		t.Fatal("default exclude rules should match Kubernetes events")
 	}

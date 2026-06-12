@@ -13,7 +13,14 @@
   "keys": [
     // Netsy's initial internal record at revision 1. Keep it so seeds preserve
     // the same bootstrap shape as a cluster initialised directly by Netsy.
-    "_netsy"
+    "_netsy",
+    // Static service IP allocations that match seedgen's Service transforms.
+    // Other IPAddress records are allocator state tied to generated ClusterIPs
+    // and should be recreated by Kubernetes rather than baked into seeds.
+    "/registry/ipaddresses/198.18.0.1",
+    "/registry/ipaddresses/fdc6::1",
+    "/registry/ipaddresses/198.19.255.254",
+    "/registry/ipaddresses/fdc6::ffff"
   ],
   "prefixes": [
     // Core Kubernetes
@@ -35,7 +42,6 @@
     "/registry/prioritylevelconfigurations/",
     "/registry/flowschemas/",
     "/registry/ranges/",
-    "/registry/ipaddresses/",
     "/registry/servicecidrs/",
     "/registry/storageclasses/",
     "/registry/csidrivers/",
