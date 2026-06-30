@@ -121,6 +121,21 @@ func TestPipeline(t *testing.T) {
 	if !minimalExclude.Matches("/registry/validatingadmissionpolicies/platform-podplane-operator-spc-restriction-vap") {
 		t.Fatal("minimal exclude rules should drop pod-side SecretProviderClass admission policy records")
 	}
+	if !minimalExclude.Matches("/registry/clusterroles/platform-secrets-store-csi-provider-openbao-csi-provider-clusterrole") {
+		t.Fatal("minimal exclude rules should drop Secrets Store CSI provider ClusterRoles")
+	}
+	if !minimalExclude.Matches("/registry/clusterrolebindings/platform-secrets-store-csi-provider-openbao-csi-provider-clusterrolebinding") {
+		t.Fatal("minimal exclude rules should drop Secrets Store CSI provider ClusterRoleBindings")
+	}
+	if !minimalExclude.Matches("/registry/csidrivers/secrets-store.csi.k8s.io") {
+		t.Fatal("minimal exclude rules should drop Secrets Store CSI Driver CSIDriver records")
+	}
+	if !minimalExclude.Matches("/registry/validatingadmissionpolicies/platform-deny-editor-shell-vap") {
+		t.Fatal("minimal exclude rules should drop editor shell admission policies")
+	}
+	if !minimalExclude.Matches("/registry/validatingadmissionpolicybindings/platform-deny-editor-shell-vapb") {
+		t.Fatal("minimal exclude rules should drop editor shell admission policy bindings")
+	}
 
 	value := []byte(`{"apiVersion":"v1","kind":"Service","spec":{"clusterIP":"198.18.0.1","clusterIPs":["198.18.0.1"],"ipFamilies":["IPv4"],"ipFamilyPolicy":"SingleStack"}}`)
 	got, err := p.Transforms("none").TransformValue([]byte("/registry/services/specs/default/kubernetes"), value)
