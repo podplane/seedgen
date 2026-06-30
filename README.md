@@ -119,6 +119,27 @@ Both files share the same JSONC shape:
 A record is kept iff it matches **any** include rule AND does **not** match any
 exclude rule.
 
+## Resetting uid-only changes
+
+Running seedgen does not generate deterministic output between different clusters, because resource UIDs will be different. However, the seedgen tool does normalize timestamps. In order to minimise a git diff, you may want to revert/reset uid-only JSON record changes...
+
+Preview:
+
+```
+comm -23 \
+  <(git diff --name-only --diff-filter=M -- records | sort) \
+  <(git diff --name-only --diff-filter=M -G'^[+-][[:space:]]+"[^u]|^[+-][[:space:]]+"u[^i]|^[+-][[:space:]]+"ui[^d]|^[+-][[:space:]]+"uid[^"]' -- records | sort)
+```
+
+Reset:
+
+```
+comm -23 \
+  <(git diff --name-only --diff-filter=M -- records | sort) \
+  <(git diff --name-only --diff-filter=M -G'^[+-][[:space:]]+"[^u]|^[+-][[:space:]]+"u[^i]|^[+-][[:space:]]+"ui[^d]|^[+-][[:space:]]+"uid[^"]' -- records | sort) |
+xargs git checkout --
+```
+
 ## Install
 
 ```

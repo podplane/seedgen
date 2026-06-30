@@ -10,6 +10,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -217,6 +218,18 @@ func TestMinimalTransformsResetRecommendedState(t *testing.T) {
 	apiGroups := rules[0].(map[string]any)["apiGroups"].([]any)
 	if apiGroups[0] != "source.toolkit.fluxcd.io" {
 		t.Fatalf("remaining apiGroups = %#v, want Flux rule", apiGroups)
+	}
+
+	role := &rbacv1.ClusterRole{Rules: []rbacv1.PolicyRule{
+		{APIGroups: []string{"secrets-api.podplane.dev"}, Resources: []string{"publickeys"}, Verbs: []string{"get"}},
+		{APIGroups: []string{"secrets-store.csi.x-k8s.io"}, Resources: []string{"secretproviderclasses"}, Verbs: []string{"get"}},
+		{APIGroups: []string{"source.toolkit.fluxcd.io"}, Resources: []string{"gitrepositories"}, Verbs: []string{"get"}},
+	}}
+	if !removeAddonAggregatedRBACRulesObject(role) {
+		t.Fatal("protobuf ClusterRole transform did not report a change")
+	}
+	if len(role.Rules) != 1 || role.Rules[0].APIGroups[0] != "source.toolkit.fluxcd.io" {
+		t.Fatalf("protobuf ClusterRole rules = %#v, want only Flux rule", role.Rules)
 	}
 }
 
