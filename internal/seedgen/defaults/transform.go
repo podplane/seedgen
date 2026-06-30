@@ -38,6 +38,7 @@ var Transforms = pipeline.Transforms{
 	pipeline.PrefixTransform{Prefix: "/registry/daemonsets/", APIVersion: "apps/v1", Kind: "DaemonSet", JSONTransforms: []pipeline.JSONTransform{resetDaemonSetAvailability, normalizePodTemplateSpecImages}, ProtobufTransforms: []pipeline.ProtobufTransform{resetTypedDaemonSetAvailability, normalizeTypedPodTemplateSpecImages}},
 	pipeline.PrefixTransform{Prefix: "/registry/statefulsets/", APIVersion: "apps/v1", Kind: "StatefulSet", JSONTransforms: []pipeline.JSONTransform{normalizePodTemplateSpecImages}, ProtobufTransforms: []pipeline.ProtobufTransform{normalizeTypedPodTemplateSpecImages}},
 	pipeline.PrefixTransform{Prefix: "/registry/services/specs/", APIVersion: "v1", Kind: "Service", JSONTransforms: []pipeline.JSONTransform{preferDualStackService, normalizeGeneratedServiceClusterIP}, ProtobufTransforms: []pipeline.ProtobufTransform{preferDualStackServiceObject, normalizeGeneratedServiceClusterIPObject}},
+	pipeline.KeyTransform{Key: "/registry/source.toolkit.fluxcd.io/gitrepositories/platform-components/podplane-components", JSONTransforms: []pipeline.JSONTransform{removeComponentsGitSecretRef}},
 	pipeline.KeyTransform{Key: "/registry/services/specs/default/kubernetes", JSONTransforms: []pipeline.JSONTransform{setServiceDualStack("198.18.0.1", "fdc6::1")}, ProtobufTransforms: []pipeline.ProtobufTransform{setServiceDualStackObject("198.18.0.1", "fdc6::1")}},
 	pipeline.KeyTransform{Key: "/registry/services/specs/platform-coredns/platform-coredns", JSONTransforms: []pipeline.JSONTransform{setServiceDualStack("198.19.255.254", "fdc6::ffff")}, ProtobufTransforms: []pipeline.ProtobufTransform{setServiceDualStackObject("198.19.255.254", "fdc6::ffff")}},
 }
@@ -370,6 +371,20 @@ func setTypedServiceDualStackFields(spec *corev1.ServiceSpec, ipv4, ipv6 string)
 		}
 	}
 	return changed
+}
+
+// removeComponentsGitSecretRef clears bootstrap-local Flux Git credentials
+// secret references.
+func removeComponentsGitSecretRef(obj map[string]any) bool {
+	spec, ok := obj["spec"].(map[string]any)
+	if !ok {
+		return false
+	}
+	if _, ok := spec["secretRef"]; !ok {
+		return false
+	}
+	delete(spec, "secretRef")
+	return true
 }
 
 // stringSliceEqual reports whether a JSON array value equals a string slice.

@@ -76,8 +76,44 @@ func TestPipeline(t *testing.T) {
 	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cert-manager/cert-manager") {
 		t.Fatal("recommended include rules should match addon HelmRelease")
 	}
+	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-podplane-operator/podplane-operator") {
+		t.Fatal("recommended include rules should match podplane-operator HelmRelease")
+	}
+	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-secrets-store-csi-driver/secrets-store-csi-driver") {
+		t.Fatal("recommended include rules should match Secrets Store CSI Driver HelmRelease")
+	}
+	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-secrets-store-csi-provider-openbao/secrets-store-csi-provider-openbao") {
+		t.Fatal("recommended include rules should match Secrets Store CSI provider HelmReleases")
+	}
+	if !recommendedInclude.Matches("/registry/secrets.podplane.dev/secretproviderbindings/platform-aok/aok-source-controller") {
+		t.Fatal("recommended include rules should match SecretProviderBinding records")
+	}
+	if !recommendedInclude.Matches("/registry/secrets-api.podplane.dev/secretproviderkeyspaces/platform-aok/aws-secrets-manager.aok-source-controller") {
+		t.Fatal("recommended include rules should match SecretProviderKeyspace records")
+	}
 	if recommendedExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cert-manager/cert-manager") {
 		t.Fatal("recommended exclude rules should not inherit minimal addon excludes")
+	}
+	if !minimalExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-podplane-operator/podplane-operator") {
+		t.Fatal("minimal exclude rules should drop podplane-operator HelmRelease")
+	}
+	if !minimalExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-secrets-store-csi-provider-openbao/secrets-store-csi-provider-openbao") {
+		t.Fatal("minimal exclude rules should drop Secrets Store CSI provider HelmReleases")
+	}
+	if !minimalExclude.Matches("/registry/secrets-store.csi.x-k8s.io/secretproviderclasses/platform-aok/aok-source-controller") {
+		t.Fatal("minimal exclude rules should drop generated SecretProviderClass records")
+	}
+	if !minimalExclude.Matches("/registry/secrets.podplane.dev/secretproviderbindings/platform-aok/aok-source-controller") {
+		t.Fatal("minimal exclude rules should drop SecretProviderBinding records")
+	}
+	if !minimalExclude.Matches("/registry/secrets-api.podplane.dev/secretproviderkeyspaces/platform-aok/aws-secrets-manager.aok-source-controller") {
+		t.Fatal("minimal exclude rules should drop SecretProviderKeyspace records")
+	}
+	if !minimalExclude.Matches("/registry/apiregistration.k8s.io/apiservices/v1beta1.secrets-api.podplane.dev") {
+		t.Fatal("minimal exclude rules should drop Podplane secrets APIService records")
+	}
+	if !minimalExclude.Matches("/registry/validatingadmissionpolicies/platform-podplane-operator-spc-restriction-vap") {
+		t.Fatal("minimal exclude rules should drop pod-side SecretProviderClass admission policy records")
 	}
 
 	value := []byte(`{"apiVersion":"v1","kind":"Service","spec":{"clusterIP":"198.18.0.1","clusterIPs":["198.18.0.1"],"ipFamilies":["IPv4"],"ipFamilyPolicy":"SingleStack"}}`)
@@ -96,6 +132,24 @@ func TestPipeline(t *testing.T) {
 	clusterIPs := spec["clusterIPs"].([]any)
 	if len(clusterIPs) != 2 || clusterIPs[0] != "198.18.0.1" || clusterIPs[1] != "fdc6::1" {
 		t.Fatalf("clusterIPs = %#v, want default IPv4 and IPv6", clusterIPs)
+	}
+}
+
+func TestTransformsRemoveComponentsGitSecretRef(t *testing.T) {
+	t.Parallel()
+
+	value := []byte(`{"apiVersion":"source.toolkit.fluxcd.io/v1","kind":"GitRepository","metadata":{"name":"podplane-components"},"spec":{"url":"https://github.com/podplane/components.git","secretRef":{"name":"podplane-components-git"},"ref":{"branch":"main"}}}`)
+	got, err := Transforms.TransformValue([]byte("/registry/source.toolkit.fluxcd.io/gitrepositories/platform-components/podplane-components"), value)
+	if err != nil {
+		t.Fatalf("TransformValue(GitRepository): %v", err)
+	}
+	var obj map[string]any
+	if err := json.Unmarshal(got, &obj); err != nil {
+		t.Fatalf("decode transformed GitRepository: %v", err)
+	}
+	spec := obj["spec"].(map[string]any)
+	if _, ok := spec["secretRef"]; ok {
+		t.Fatalf("components GitRepository secretRef was not removed: %s", got)
 	}
 }
 
@@ -127,7 +181,7 @@ func TestMinimalTransformsResetRecommendedState(t *testing.T) {
 		t.Fatalf("servicenodeports data = %v, want empty", obj["data"])
 	}
 
-	clusterRole := []byte(`{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"ClusterRole","rules":[{"apiGroups":["cert-manager.io"],"resources":["certificates"],"verbs":["get"]},{"apiGroups":["source.toolkit.fluxcd.io"],"resources":["gitrepositories"],"verbs":["get"]}]}`)
+	clusterRole := []byte(`{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"ClusterRole","rules":[{"apiGroups":["cert-manager.io"],"resources":["certificates"],"verbs":["get"]},{"apiGroups":["secrets-api.podplane.dev"],"resources":["publickeys"],"verbs":["get"]},{"apiGroups":["secrets-api.podplane.dev"],"resources":["secretproviderkeyspaces"],"verbs":["get"]},{"apiGroups":["secrets.podplane.dev"],"resources":["secretproviderbindings"],"verbs":["get"]},{"apiGroups":["secrets-store.csi.x-k8s.io"],"resources":["secretproviderclasses"],"verbs":["get"]},{"apiGroups":["source.toolkit.fluxcd.io"],"resources":["gitrepositories"],"verbs":["get"]}]}`)
 	got, err = MinimalTransforms.TransformValue([]byte("/registry/clusterroles/view"), clusterRole)
 	if err != nil {
 		t.Fatalf("TransformValue(view ClusterRole): %v", err)

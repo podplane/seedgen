@@ -50,6 +50,8 @@ var expectedProfiles = map[string]expectedProfile{
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cilium/cilium",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-coredns/coredns",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-fluxcd/fluxcd",
+			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-podplane-operator/podplane-operator",
+			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-secrets-store-csi-driver/secrets-store-csi-driver",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-traefik/traefik",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-trust-manager/trust-manager",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-trust/platform-trust",
