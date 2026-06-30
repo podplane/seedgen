@@ -85,6 +85,9 @@ func TestPipeline(t *testing.T) {
 	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-secrets-store-csi-provider-openbao/secrets-store-csi-provider-openbao") {
 		t.Fatal("recommended include rules should match Secrets Store CSI provider HelmReleases")
 	}
+	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-zot-registry/zot-registry") {
+		t.Fatal("recommended include rules should match zot-registry HelmRelease")
+	}
 	if !recommendedInclude.Matches("/registry/secrets.podplane.dev/secretproviderbindings/platform-aok/aok-source-controller") {
 		t.Fatal("recommended include rules should match SecretProviderBinding records")
 	}
@@ -99,6 +102,9 @@ func TestPipeline(t *testing.T) {
 	}
 	if !minimalExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-secrets-store-csi-provider-openbao/secrets-store-csi-provider-openbao") {
 		t.Fatal("minimal exclude rules should drop Secrets Store CSI provider HelmReleases")
+	}
+	if !minimalExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-zot-registry/zot-registry") {
+		t.Fatal("minimal exclude rules should drop zot-registry HelmRelease")
 	}
 	if !minimalExclude.Matches("/registry/secrets-store.csi.x-k8s.io/secretproviderclasses/platform-aok/aok-source-controller") {
 		t.Fatal("minimal exclude rules should drop generated SecretProviderClass records")

@@ -55,6 +55,7 @@ var expectedProfiles = map[string]expectedProfile{
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-traefik/traefik",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-trust-manager/trust-manager",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-trust/platform-trust",
+			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-zot-registry/zot-registry",
 			"/registry/cert-manager.io/clusterissuers/platform-ingress-selfsigned-clusterissuer",
 			"/registry/cert-manager.io/clusterissuers/platform-service-certificate-clusterissuer",
 			"/registry/gateway.networking.k8s.io/gateways/platform-traefik/platform-traefik-gateway",

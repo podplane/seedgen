@@ -17,7 +17,8 @@
     "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-secrets-store-csi-driver/secrets-store-csi-driver",
     "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-traefik/traefik",
     "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-trust-manager/trust-manager",
-    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-trust/platform-trust"
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-trust/platform-trust",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-zot-registry/zot-registry"
   ],
   "prefixes": [
     // Recommended addon namespaces and namespaced resources.
@@ -29,6 +30,7 @@
     "/registry/namespaces/platform-traefik",
     "/registry/namespaces/platform-trust",
     "/registry/namespaces/platform-trust-manager",
+    "/registry/namespaces/platform-zot-registry",
     "/registry/serviceaccounts/platform-agent-sandbox/",
     "/registry/serviceaccounts/platform-cert-manager/",
     "/registry/serviceaccounts/platform-certs/",
@@ -37,25 +39,30 @@
     "/registry/serviceaccounts/platform-traefik/",
     "/registry/serviceaccounts/platform-trust/",
     "/registry/serviceaccounts/platform-trust-manager/",
+    "/registry/serviceaccounts/platform-zot-registry/",
     "/registry/configmaps/default/platform-",
     "/registry/configmaps/platform-podplane-operator/",
     "/registry/configmaps/platform-secrets-store-csi-driver",
     "/registry/configmaps/platform-trust/",
+    "/registry/configmaps/platform-zot-registry/",
     "/registry/roles/platform-cert-manager/",
     "/registry/roles/platform-certs/",
     "/registry/roles/platform-podplane-operator/",
     "/registry/roles/platform-secrets-store-csi-driver",
     "/registry/roles/platform-trust-manager/",
+    "/registry/roles/platform-zot-registry/",
     "/registry/rolebindings/platform-cert-manager/",
     "/registry/rolebindings/platform-certs/",
     "/registry/rolebindings/platform-podplane-operator/",
     "/registry/rolebindings/platform-secrets-store-csi-driver",
     "/registry/rolebindings/platform-trust-manager/",
+    "/registry/rolebindings/platform-zot-registry/",
     "/registry/deployments/platform-agent-sandbox/",
     "/registry/deployments/platform-cert-manager/",
     "/registry/deployments/platform-podplane-operator/",
     "/registry/deployments/platform-secrets-store-csi-driver",
     "/registry/deployments/platform-trust-manager/",
+    "/registry/deployments/platform-zot-registry/",
     "/registry/daemonsets/platform-secrets-store-csi-driver",
     "/registry/daemonsets/platform-traefik/",
     "/registry/services/specs/platform-agent-sandbox/",
@@ -64,6 +71,7 @@
     "/registry/services/specs/platform-secrets-store-csi-driver",
     "/registry/services/specs/platform-traefik/",
     "/registry/services/specs/platform-trust-manager/",
+    "/registry/services/specs/platform-zot-registry/",
 
     // Recommended addon Flux HelmReleases and Helm release state Secrets.
     "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-secrets-store-csi-provider-",
@@ -80,6 +88,7 @@
     "/registry/secrets/platform-traefik/sh.helm.release.v1.",
     "/registry/secrets/platform-trust-manager/sh.helm.release.v1.",
     "/registry/secrets/platform-trust/sh.helm.release.v1.",
+    "/registry/secrets/platform-zot-registry/sh.helm.release.v1.",
 
     // Recommended addon Flux HelmChart objects.
     "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-agent-sandbox-agent-sandbox",
@@ -95,6 +104,7 @@
     "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-traefik-traefik",
     "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-trust-manager-trust-manager",
     "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-trust-platform-trust",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-zot-registry-zot-registry",
 
     // Platform-owned addon custom resources.
     "/registry/cert-manager.io/certificates/platform-certs/",
