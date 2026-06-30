@@ -59,7 +59,7 @@ separate audit trees. The snapshot itself is written to
 | `--include`             | (embedded)    | Path to a JSONC include file overriding the pipeline default.                                         |
 | `--exclude`             | (embedded)    | Path to a JSONC exclude file overriding the pipeline default.                                         |
 | `--expect`              | name-derived  | Check for expected records based on the type of seed. Defaults to `--name` when name is `recommended` or `minimal`; otherwise required. Options: `recommended`, `minimal`, or `none`. |
-| `--verify-components`   | (unset)       | Path to a components manifest; fail if any emitted seed image is absent from it.                      |
+| `--verify-components`   | (unset)       | Path to a components manifest; fail if any emitted seed image is absent from it or if component images mix mirrored and upstream refs. |
 | `--dry-run`             | `false`       | Run the full pipeline and write key reports but do not write the output file.                         |
 
 The `recommended` expectation guard is intended for published seed snapshots.
@@ -69,6 +69,13 @@ accidentally drop required platform records. The `--expect` value is inferred
 from `--name recommended` or `--name minimal`. Use `--expect none` for
 ad-hoc/custom/debug exports, or pass an explicit `--expect` with any custom
 `--name`.
+
+When `--verify-components` is set, component image refs in the seed must be
+consistent: either all matched component images use upstream refs from the
+components manifest, or all matched component images use the local registry
+mirror form such as `default-registry.local/mirror/<upstream-image>`. Mixed
+mirrored and upstream component refs usually mean the cluster was exported
+mid-reconciliation or a component chart is missing image mirror plumbing.
 
 ## Include / exclude rules
 

@@ -69,6 +69,29 @@ func TestWriteSnapshotVerifiesRepositoryOnlyComponentsManifestImage(t *testing.T
 	}
 }
 
+// TestWriteSnapshotFailsForMixedMirroredAndUpstreamImages verifies that a seed
+// cannot mix local mirror refs and upstream refs for component images.
+func TestWriteSnapshotFailsForMixedMirroredAndUpstreamImages(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	manifestPath := filepath.Join(dir, "components.json")
+	if err := os.WriteFile(manifestPath, []byte(`{"components":{"images":[{"image":"caddy:2"},{"image":"busybox:1.37"}]}}`), 0o600); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	records := []*datafile.Record{
+		{Revision: 1, Key: []byte("/registry/deployments/default/caddy"), Value: []byte(`{"apiVersion":"apps/v1","kind":"Deployment","spec":{"template":{"spec":{"containers":[{"image":"default-registry.local/mirror/docker.io/library/caddy:2"}]}}}}`)},
+		{Revision: 2, Key: []byte("/registry/deployments/default/busybox"), Value: []byte(`{"apiVersion":"apps/v1","kind":"Deployment","spec":{"template":{"spec":{"containers":[{"image":"docker.io/library/busybox:1.37"}]}}}}`)},
+	}
+	var buf bytes.Buffer
+	err := WriteSnapshot(&buf, records, WriteOptions{LeaderID: "seed", VerifyComponents: manifestPath})
+	if err == nil {
+		t.Fatalf("WriteSnapshot succeeded with mixed mirrored and upstream images")
+	}
+	if !strings.Contains(err.Error(), "mixed mirrored and upstream") || !strings.Contains(err.Error(), "docker.io/library/caddy:2") || !strings.Contains(err.Error(), "docker.io/library/busybox:1.37") {
+		t.Fatalf("WriteSnapshot error = %v, want mixed mirror error with examples", err)
+	}
+}
+
 // TestWriteSnapshotFailsForMissingComponentsManifestImage verifies that seed
 // images must be present in the normalized manifest set.
 func TestWriteSnapshotFailsForMissingComponentsManifestImage(t *testing.T) {
