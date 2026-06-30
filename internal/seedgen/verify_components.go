@@ -14,6 +14,8 @@ import (
 	"github.com/podplane/seedgen/pkg/pipeline"
 )
 
+const helmReleaseKeyPrefix = "/registry/helm.toolkit.fluxcd.io/helmreleases/"
+
 // componentsManifest models the image list in a components manifest file.
 type componentsManifest struct {
 	Components struct {
@@ -27,6 +29,7 @@ type componentsManifest struct {
 type componentsVerifier struct {
 	manifestPath string
 	images       map[string]struct{}
+	repos        map[string]struct{}
 	missing      map[string]map[string]struct{}
 }
 
@@ -44,16 +47,20 @@ func newComponentsVerifier(path string) (*componentsVerifier, error) {
 		return nil, fmt.Errorf("decode components manifest %s: %w", path, err)
 	}
 	images := make(map[string]struct{})
+	repos := make(map[string]struct{})
 	for _, item := range manifest.Components.Images {
 		if item.Image == "" {
 			continue
 		}
-		images[pipeline.NormalizeImageRef(item.Image)] = struct{}{}
+		image := pipeline.NormalizeImageRef(item.Image)
+		images[image] = struct{}{}
+		repo, _ := imageRepository(image)
+		repos[repo] = struct{}{}
 	}
 	if len(images) == 0 {
 		return nil, fmt.Errorf("components manifest %s contains no images", path)
 	}
-	return &componentsVerifier{manifestPath: path, images: images, missing: make(map[string]map[string]struct{})}, nil
+	return &componentsVerifier{manifestPath: path, images: images, repos: repos, missing: make(map[string]map[string]struct{})}, nil
 }
 
 // Check records any JSON image fields in value that are absent from the
@@ -90,8 +97,15 @@ func (v *componentsVerifier) checkValue(key string, value any) {
 // checkImage records image as missing for key when the manifest does not list
 // it.
 func (v *componentsVerifier) checkImage(key, image string) {
-	if _, ok := v.images[image]; ok {
+	normalized := normalizeSeedImageRef(image)
+	if _, ok := v.images[normalized]; ok {
 		return
+	}
+	repo, hasVersion := imageRepository(normalized)
+	if strings.HasPrefix(key, helmReleaseKeyPrefix) && !hasVersion {
+		if _, ok := v.repos[repo]; ok {
+			return
+		}
 	}
 	keys := v.missing[image]
 	if keys == nil {
@@ -125,4 +139,32 @@ func (v *componentsVerifier) Err() error {
 		}
 	}
 	return fmt.Errorf("%s", b.String())
+}
+
+// normalizeSeedImageRef strips the local component image mirror prefix before
+// comparing seed images against the upstream images listed in components.json.
+func normalizeSeedImageRef(image string) string {
+	image = strings.TrimSpace(image)
+	if image == "" {
+		return ""
+	}
+	if _, rest, ok := strings.Cut(image, "/mirror/"); ok {
+		return pipeline.NormalizeImageRef(rest)
+	}
+	return pipeline.NormalizeImageRef(image)
+}
+
+// imageRepository returns the repository portion of image and reports whether
+// the image included a tag or digest.
+func imageRepository(image string) (string, bool) {
+	image = strings.TrimSpace(image)
+	if at := strings.Index(image, "@"); at >= 0 {
+		return image[:at], true
+	}
+	lastSlash := strings.LastIndex(image, "/")
+	lastColon := strings.LastIndex(image, ":")
+	if lastColon > lastSlash {
+		return image[:lastColon], true
+	}
+	return image, false
 }

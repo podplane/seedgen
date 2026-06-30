@@ -64,6 +64,10 @@ internal/
   the seedgen pipeline over them.
 - Always assert `len(output) == maxRevision(output)` in tests that exercise
   the writer; that's the property Netsy bootstrap will check.
+- For seed-content debugging and workflow verification, prefer the JSON files
+  written under `records/<seed-name>/`; they are the intended inspectable view
+  of what `seedgen` emitted. Do not require `read-netsy-file` unless the task is
+  specifically to validate or inspect the binary `.netsy` snapshot format.
 
 ## Code style
 
