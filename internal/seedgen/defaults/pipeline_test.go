@@ -80,8 +80,14 @@ func TestPipeline(t *testing.T) {
 	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-podplane-operator/podplane-operator") {
 		t.Fatal("recommended include rules should match podplane-operator HelmRelease")
 	}
+	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/podplane-operator-crds") {
+		t.Fatal("recommended include rules should match podplane-operator CRD HelmRelease")
+	}
 	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-secrets-store-csi-driver/secrets-store-csi-driver") {
 		t.Fatal("recommended include rules should match Secrets Store CSI Driver HelmRelease")
+	}
+	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/secrets-store-csi-driver-crds") {
+		t.Fatal("recommended include rules should match Secrets Store CSI Driver CRD HelmRelease")
 	}
 	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-secrets-store-csi-provider-openbao/secrets-store-csi-provider-openbao") {
 		t.Fatal("recommended include rules should match Secrets Store CSI provider HelmReleases")
@@ -106,6 +112,12 @@ func TestPipeline(t *testing.T) {
 	}
 	if !minimalExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-podplane-operator/podplane-operator") {
 		t.Fatal("minimal exclude rules should drop podplane-operator HelmRelease")
+	}
+	if !minimalExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/podplane-operator-crds") {
+		t.Fatal("minimal exclude rules should drop podplane-operator CRD HelmRelease")
+	}
+	if !minimalExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/secrets-store-csi-driver-crds") {
+		t.Fatal("minimal exclude rules should drop Secrets Store CSI Driver CRD HelmRelease")
 	}
 	if !minimalExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-secrets-store-csi-provider-openbao/secrets-store-csi-provider-openbao") {
 		t.Fatal("minimal exclude rules should drop Secrets Store CSI provider HelmReleases")

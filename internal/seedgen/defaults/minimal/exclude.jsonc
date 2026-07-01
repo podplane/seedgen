@@ -81,6 +81,8 @@
     "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-zot-registry/",
     "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/agent-sandbox-crds",
     "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/cert-manager-crds",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/podplane-operator-crds",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/secrets-store-csi-driver-crds",
     "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/traefik-crds",
     "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/trust-manager-crds",
     "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-agent-sandbox-",
@@ -95,6 +97,8 @@
     "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-zot-registry-zot-registry",
     "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-agent-sandbox-crds",
     "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-cert-manager-crds",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-podplane-operator-crds",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-secrets-store-csi-driver-crds",
     "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-traefik-crds",
     "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-trust-manager-crds",
 

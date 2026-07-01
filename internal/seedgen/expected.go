@@ -42,6 +42,8 @@ var expectedProfiles = map[string]expectedProfile{
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/fluxcd-crds",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/gateway-api-crds",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/platform-rbac",
+			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/podplane-operator-crds",
+			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/secrets-store-csi-driver-crds",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/traefik-crds",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/trust-manager-crds",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-agent-sandbox/agent-sandbox",
