@@ -89,6 +89,12 @@ func TestPipeline(t *testing.T) {
 	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-zot-registry/zot-registry") {
 		t.Fatal("recommended include rules should match zot-registry HelmRelease")
 	}
+	if !recommendedInclude.Matches("/registry/roles/platform-agent-sandbox/agent-sandbox-controller") {
+		t.Fatal("recommended include rules should match agent-sandbox namespaced Role")
+	}
+	if !recommendedInclude.Matches("/registry/rolebindings/platform-agent-sandbox/agent-sandbox-controller") {
+		t.Fatal("recommended include rules should match agent-sandbox namespaced RoleBinding")
+	}
 	if !recommendedInclude.Matches("/registry/secrets.podplane.dev/secretproviderbindings/platform-aok/aok-source-controller") {
 		t.Fatal("recommended include rules should match SecretProviderBinding records")
 	}
