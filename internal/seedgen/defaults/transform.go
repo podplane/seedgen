@@ -38,6 +38,7 @@ var Transforms = pipeline.Transforms{
 	pipeline.PrefixTransform{Prefix: "/registry/daemonsets/", APIVersion: "apps/v1", Kind: "DaemonSet", JSONTransforms: []pipeline.JSONTransform{resetDaemonSetAvailability, normalizePodTemplateSpecImages}, ProtobufTransforms: []pipeline.ProtobufTransform{resetTypedDaemonSetAvailability, normalizeTypedPodTemplateSpecImages}},
 	pipeline.PrefixTransform{Prefix: "/registry/statefulsets/", APIVersion: "apps/v1", Kind: "StatefulSet", JSONTransforms: []pipeline.JSONTransform{normalizePodTemplateSpecImages}, ProtobufTransforms: []pipeline.ProtobufTransform{normalizeTypedPodTemplateSpecImages}},
 	pipeline.PrefixTransform{Prefix: "/registry/services/specs/", APIVersion: "v1", Kind: "Service", JSONTransforms: []pipeline.JSONTransform{preferDualStackService, normalizeGeneratedServiceClusterIP}, ProtobufTransforms: []pipeline.ProtobufTransform{preferDualStackServiceObject, normalizeGeneratedServiceClusterIPObject}},
+	pipeline.KeyTransform{Key: "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-components/platform-components", JSONTransforms: []pipeline.JSONTransform{removeSecretsProviderValues}},
 	pipeline.KeyTransform{Key: "/registry/source.toolkit.fluxcd.io/gitrepositories/platform-components/podplane-components", JSONTransforms: []pipeline.JSONTransform{removeComponentsGitSecretRef}},
 	pipeline.KeyTransform{Key: "/registry/services/specs/default/kubernetes", JSONTransforms: []pipeline.JSONTransform{setServiceDualStack("198.18.0.1", "fdc6::1")}, ProtobufTransforms: []pipeline.ProtobufTransform{setServiceDualStackObject("198.18.0.1", "fdc6::1")}},
 	pipeline.KeyTransform{Key: "/registry/services/specs/platform-coredns/platform-coredns", JSONTransforms: []pipeline.JSONTransform{setServiceDualStack("198.19.255.254", "fdc6::ffff")}, ProtobufTransforms: []pipeline.ProtobufTransform{setServiceDualStackObject("198.19.255.254", "fdc6::ffff")}},
@@ -384,6 +385,38 @@ func removeComponentsGitSecretRef(obj map[string]any) bool {
 		return false
 	}
 	delete(spec, "secretRef")
+	return true
+}
+
+// removeSecretsProviderValues clears bootstrap-specific secrets provider
+// settings from the platform-components HelmRelease before seed output.
+func removeSecretsProviderValues(obj map[string]any) bool {
+	var changed bool
+	changed = deleteNestedKey(obj, []string{"spec", "values", "platform", "components", "values", "podplane-operator", "podplane", "operator", "config", "cluster", "secrets"}, "providers") || changed
+	changed = deleteNestedKey(obj, []string{"spec", "values", "platform", "components", "values", "secrets-store-csi-provider-openbao", "podplane", "secrets"}, "providers") || changed
+	return changed
+}
+
+// deleteNestedKey deletes one key from a nested JSON object and prunes empty
+// maps created by removing that key.
+func deleteNestedKey(obj map[string]any, path []string, key string) bool {
+	if len(path) == 0 {
+		if _, ok := obj[key]; !ok {
+			return false
+		}
+		delete(obj, key)
+		return true
+	}
+	next, ok := obj[path[0]].(map[string]any)
+	if !ok {
+		return false
+	}
+	if !deleteNestedKey(next, path[1:], key) {
+		return false
+	}
+	if len(next) == 0 {
+		delete(obj, path[0])
+	}
 	return true
 }
 

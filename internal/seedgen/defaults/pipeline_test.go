@@ -193,6 +193,28 @@ func TestTransformsRemoveComponentsGitSecretRef(t *testing.T) {
 	}
 }
 
+func TestTransformsRemoveSecretsProviderValues(t *testing.T) {
+	t.Parallel()
+
+	value := []byte(`{"apiVersion":"helm.toolkit.fluxcd.io/v2","kind":"HelmRelease","metadata":{"name":"platform-components"},"spec":{"values":{"platform":{"components":{"values":{"podplane-operator":{"podplane":{"operator":{"config":{"cluster":{"id":"cluster","secrets":{"providers":{"local-fakevault":{"kind":"openbao","address":"https://10.0.0.1:19443/vault/cluster","caCert":"cert"},"production-vault":{"kind":"vault","address":"https://vault.example.com"}}}}}}}},"secrets-store-csi-provider-openbao":{"podplane":{"secrets":{"providers":{"local-fakevault":{"caCert":"cert"}}}}}}}}}}}`)
+	got, err := Transforms.TransformValue([]byte("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-components/platform-components"), value)
+	if err != nil {
+		t.Fatalf("TransformValue(platform-components): %v", err)
+	}
+	var obj map[string]any
+	if err := json.Unmarshal(got, &obj); err != nil {
+		t.Fatalf("decode transformed HelmRelease: %v", err)
+	}
+	componentValues := obj["spec"].(map[string]any)["values"].(map[string]any)["platform"].(map[string]any)["components"].(map[string]any)["values"].(map[string]any)
+	operatorCluster := componentValues["podplane-operator"].(map[string]any)["podplane"].(map[string]any)["operator"].(map[string]any)["config"].(map[string]any)["cluster"].(map[string]any)
+	if _, ok := operatorCluster["secrets"]; ok {
+		t.Fatalf("operator secrets provider values were not removed: %s", got)
+	}
+	if _, ok := componentValues["secrets-store-csi-provider-openbao"]; ok {
+		t.Fatalf("empty OpenBao provider values were not pruned: %s", got)
+	}
+}
+
 func TestMinimalTransformsResetRecommendedState(t *testing.T) {
 	t.Parallel()
 
