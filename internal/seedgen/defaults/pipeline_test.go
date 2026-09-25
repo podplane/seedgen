@@ -113,6 +113,23 @@ func TestPipeline(t *testing.T) {
 	if !recommendedInclude.Matches("/registry/secrets-api.podplane.dev/secretproviderkeyspaces/platform-aok/aws-secrets-manager.aok-source-controller") {
 		t.Fatal("recommended include rules should match SecretProviderKeyspace records")
 	}
+	for _, key := range []string{
+		"/registry/namespaces/platform-secrets-store-csi-provider-openbao",
+		"/registry/serviceaccounts/platform-secrets-store-csi-provider-openbao/platform-secrets-store-csi-provider-openbao-csi-provider",
+		"/registry/configmaps/platform-secrets-store-csi-provider-openbao/platform-secrets-store-csi-provider-openbao-csi-provider-agent-config",
+		"/registry/configmaps/platform-secrets-store-csi-provider-openbao/podplane-secrets-provider-ca-local-fakevault",
+		"/registry/roles/platform-secrets-store-csi-provider-openbao/platform-secrets-store-csi-provider-openbao-csi-provider-role",
+		"/registry/rolebindings/platform-secrets-store-csi-provider-openbao/platform-secrets-store-csi-provider-openbao-csi-provider-rolebinding",
+		"/registry/daemonsets/platform-secrets-store-csi-provider-openbao/platform-secrets-store-csi-provider-openbao-csi-provider",
+	} {
+		if !recommendedInclude.Matches(key) {
+			t.Fatalf("recommended include rules should match OpenBao provider record %q", key)
+		}
+	}
+	openBaoHMACKey := "/registry/secrets/platform-secrets-store-csi-provider-openbao/openbao-csi-provider-hmac-key"
+	if !recommendedInclude.Matches(openBaoHMACKey) || !recommendedExclude.Matches(openBaoHMACKey) {
+		t.Fatal("recommended rules should match and then exclude the generated OpenBao HMAC Secret")
+	}
 	if recommendedExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-envoy-gateway/envoy-gateway") {
 		t.Fatal("recommended exclude rules should not inherit minimal addon excludes")
 	}
