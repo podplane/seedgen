@@ -48,6 +48,9 @@ func TestPipeline(t *testing.T) {
 	if !exclude.Matches("/registry/events/default/example") {
 		t.Fatal("default exclude rules should match Kubernetes events")
 	}
+	if !exclude.Matches("/registry/secrets/platform-secrets-store-csi-provider-openbao/openbao-csi-provider-hmac-key") {
+		t.Fatal("default exclude rules should match generated OpenBao HMAC Secret")
+	}
 
 	minimalInclude, err := p.IncludeRules("minimal")
 	if err != nil {
@@ -60,10 +63,10 @@ func TestPipeline(t *testing.T) {
 	if !minimalInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-fluxcd/fluxcd") {
 		t.Fatal("minimal include rules should match core Flux HelmRelease")
 	}
-	if minimalInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cert-manager/cert-manager") {
+	if minimalInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-envoy-gateway/envoy-gateway") {
 		t.Fatal("minimal include rules should not match addon HelmRelease")
 	}
-	if !minimalExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cert-manager/cert-manager") {
+	if !minimalExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-envoy-gateway/envoy-gateway") {
 		t.Fatal("minimal exclude rules should drop recommended addon Flux resources")
 	}
 	recommendedInclude, err := p.IncludeRules("recommended")
@@ -74,8 +77,11 @@ func TestPipeline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("recommended ExcludeRules: %v", err)
 	}
-	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cert-manager/cert-manager") {
+	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-envoy-gateway/envoy-gateway") {
 		t.Fatal("recommended include rules should match addon HelmRelease")
+	}
+	if !recommendedInclude.Matches("/registry/gateway.envoyproxy.io/envoyproxies/platform-envoy-gateway/platform-envoy-gateway") {
+		t.Fatal("recommended include rules should match EnvoyProxy records")
 	}
 	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-podplane-operator/podplane-operator") {
 		t.Fatal("recommended include rules should match podplane-operator HelmRelease")
@@ -107,7 +113,7 @@ func TestPipeline(t *testing.T) {
 	if !recommendedInclude.Matches("/registry/secrets-api.podplane.dev/secretproviderkeyspaces/platform-aok/aws-secrets-manager.aok-source-controller") {
 		t.Fatal("recommended include rules should match SecretProviderKeyspace records")
 	}
-	if recommendedExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cert-manager/cert-manager") {
+	if recommendedExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-envoy-gateway/envoy-gateway") {
 		t.Fatal("recommended exclude rules should not inherit minimal addon excludes")
 	}
 	if !minimalExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-podplane-operator/podplane-operator") {

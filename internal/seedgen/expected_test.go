@@ -17,7 +17,6 @@ func TestCheckExpectedRecommended(t *testing.T) {
 	for _, key := range expectedProfiles["recommended"].keys {
 		records = append(records, &datafile.Record{Key: []byte(key)})
 	}
-	records = append(records, &datafile.Record{Key: []byte("/registry/cert-manager.io/certificates/platform-traefik/platform-traefik-default-localhost")})
 
 	if err := CheckExpected("recommended", records); err != nil {
 		t.Fatalf("CheckExpected recommended error = %v", err)
@@ -34,9 +33,10 @@ func TestCheckExpectedRecommendedReportsMissing(t *testing.T) {
 	}
 	msg := err.Error()
 	for _, want := range []string{
-		"platform-traefik-gateway",
+		"platform-envoy-gateway/envoy-gateway",
+		"platform-envoy-gateway/platform-envoy-gateway",
 		"platform-http-to-https-redirect-httproute",
-		"platform-traefik-default-*",
+		"platform-envoy-gateway-ingress-certificates",
 	} {
 		if !strings.Contains(msg, want) {
 			t.Fatalf("missing error did not mention %q: %s", want, msg)
