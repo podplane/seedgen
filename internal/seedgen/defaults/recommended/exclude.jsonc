@@ -5,7 +5,9 @@
 // Exclude rules applied only when generating the recommended profile. The
 // common root exclude rules are always applied first.
 {
-  "keys": [],
+  "keys": [
+    "/registry/daemonsets/platform-envoy-gateway/platform-envoy-gateway"
+  ],
   "prefixes": [],
   "substrings": []
 }

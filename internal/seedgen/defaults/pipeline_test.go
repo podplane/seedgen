@@ -116,6 +116,12 @@ func TestPipeline(t *testing.T) {
 	if recommendedExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-envoy-gateway/envoy-gateway") {
 		t.Fatal("recommended exclude rules should not inherit minimal addon excludes")
 	}
+	if !recommendedExclude.Matches("/registry/daemonsets/platform-envoy-gateway/platform-envoy-gateway") {
+		t.Fatal("recommended exclude rules should drop the generated Envoy data-plane DaemonSet")
+	}
+	if exclude.Matches("/registry/daemonsets/platform-envoy-gateway/platform-envoy-gateway") {
+		t.Fatal("default exclude rules should retain the Envoy data-plane DaemonSet")
+	}
 	if !minimalExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-podplane-operator/podplane-operator") {
 		t.Fatal("minimal exclude rules should drop podplane-operator HelmRelease")
 	}
@@ -312,6 +318,42 @@ func TestTransformsNormalizeWorkloadImages(t *testing.T) {
 	}
 	if image := statefulSet.Spec.Template.Spec.Containers[0].Image; image != "docker.io/library/registry:3" {
 		t.Fatalf("StatefulSet image = %q, want normalized Docker Hub library repo", image)
+	}
+}
+
+func TestRecommendedTransformsScaleEnvoyGatewayDeploymentToZero(t *testing.T) {
+	t.Parallel()
+	value := []byte(`{"apiVersion":"apps/v1","kind":"Deployment","spec":{"replicas":1}}`)
+	got, err := Pipeline().Transforms("recommended").TransformValue([]byte(envoyGatewayDeploymentKey), value)
+	if err != nil {
+		t.Fatalf("TransformValue: %v", err)
+	}
+	var deployment map[string]any
+	if err := json.Unmarshal(got, &deployment); err != nil {
+		t.Fatalf("decode transformed deployment: %v", err)
+	}
+	if replicas := deployment["spec"].(map[string]any)["replicas"]; replicas != float64(0) {
+		t.Fatalf("replicas = %v, want 0", replicas)
+	}
+
+	unchanged, err := Pipeline().Transforms("none").TransformValue([]byte(envoyGatewayDeploymentKey), value)
+	if err != nil {
+		t.Fatalf("TransformValue(none): %v", err)
+	}
+	if string(unchanged) != string(value) {
+		t.Fatalf("non-profile transform changed replicas: got %s, want %s", unchanged, value)
+	}
+
+	replicas := int32(1)
+	typed := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
+		Spec:     appsv1.DeploymentSpec{Replicas: &replicas},
+	}
+	if !Pipeline().Transforms("recommended").TransformObject(envoyGatewayDeploymentKey, typed) {
+		t.Fatal("recommended protobuf transform did not report a change")
+	}
+	if typed.Spec.Replicas == nil || *typed.Spec.Replicas != 0 {
+		t.Fatalf("protobuf Deployment replicas = %v, want 0", typed.Spec.Replicas)
 	}
 }
 

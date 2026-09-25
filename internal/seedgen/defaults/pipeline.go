@@ -36,10 +36,14 @@ func Pipeline() pipeline.Pipeline {
 		IncludeRules: includeRules,
 		ExcludeRules: excludeRules,
 		Transforms: func(profile string) pipeline.Transforms {
-			if profile == "minimal" {
+			switch profile {
+			case "minimal":
 				return MinimalTransforms
+			case "recommended":
+				return RecommendedTransforms
+			default:
+				return Transforms
 			}
-			return Transforms
 		},
 		CheckExpected: seedgen.CheckExpected,
 	}
