@@ -83,6 +83,9 @@ func TestPipeline(t *testing.T) {
 	if !recommendedInclude.Matches("/registry/gateway.envoyproxy.io/envoyproxies/platform-envoy-gateway/platform-envoy-gateway") {
 		t.Fatal("recommended include rules should match EnvoyProxy records")
 	}
+	if !recommendedExclude.Matches("/registry/secrets/platform-envoy-gateway/bundle-9464ba90046c9f91c931fcb4") {
+		t.Fatal("recommended exclude rules should drop domain-specific Envoy SDS Secrets")
+	}
 	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-podplane-operator/podplane-operator") {
 		t.Fatal("recommended include rules should match podplane-operator HelmRelease")
 	}

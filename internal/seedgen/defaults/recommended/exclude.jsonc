@@ -8,6 +8,9 @@
   "keys": [
     "/registry/daemonsets/platform-envoy-gateway/platform-envoy-gateway"
   ],
-  "prefixes": [],
+  "prefixes": [
+    // Domain-specific, non-sensitive SDS references are synthesized by pkg/netsyseed.
+    "/registry/secrets/platform-envoy-gateway/bundle-"
+  ],
   "substrings": []
 }
