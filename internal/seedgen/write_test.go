@@ -411,9 +411,30 @@ func TestWriteSnapshotEmitsJSONForKubernetesProtobufSeedTransforms(t *testing.T)
 	input := []*datafile.Record{
 		{
 			Revision: 1,
-			Key:      []byte("/registry/deployments/platform-trust-manager/platform-trust-manager"),
+			Key:      []byte("/registry/deployments/platform-envoy-gateway/envoy-gateway"),
 			Value: kubernetesProtobufValue(t, &appsv1.Deployment{
 				TypeMeta: metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
+				Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{Volumes: []corev1.Volume{
+						{
+							Name: "certs",
+							VolumeSource: corev1.VolumeSource{Projected: &corev1.ProjectedVolumeSource{
+								Sources: []corev1.VolumeProjection{
+									{PodCertificate: &corev1.PodCertificateProjection{
+										SignerName:           "certificates.podplane.dev/workload",
+										KeyType:              "ECDSAP256",
+										KeyPath:              "tls.key",
+										CertificateChainPath: "tls.crt",
+										UserAnnotations: map[string]string{
+											"certificates.podplane.dev/mode":    "service",
+											"certificates.podplane.dev/service": "envoy-gateway",
+										},
+									}},
+								},
+							}},
+						},
+					}},
+				}},
 				Status: appsv1.DeploymentStatus{Conditions: []appsv1.DeploymentCondition{
 					{Type: appsv1.DeploymentAvailable, Status: corev1.ConditionTrue},
 				}},
@@ -470,6 +491,25 @@ func TestWriteSnapshotEmitsJSONForKubernetesProtobufSeedTransforms(t *testing.T)
 	}
 	if len(deployment.Status.Conditions) != 0 {
 		t.Fatalf("Deployment status conditions = %#v, want empty status", deployment.Status.Conditions)
+	}
+	if len(deployment.Spec.Template.Spec.Volumes) != 1 || deployment.Spec.Template.Spec.Volumes[0].Projected == nil || len(deployment.Spec.Template.Spec.Volumes[0].Projected.Sources) != 1 {
+		t.Fatalf("Deployment projected volumes = %#v, want one projection source", deployment.Spec.Template.Spec.Volumes)
+	}
+	projection := deployment.Spec.Template.Spec.Volumes[0].Projected.Sources[0].PodCertificate
+	if projection == nil {
+		t.Fatalf("Deployment podCertificate projection = nil, want preserved projection")
+	}
+	if projection.SignerName != "certificates.podplane.dev/workload" {
+		t.Errorf("podCertificate signerName = %q, want certificates.podplane.dev/workload", projection.SignerName)
+	}
+	if projection.KeyType != "ECDSAP256" {
+		t.Errorf("podCertificate keyType = %q, want ECDSAP256", projection.KeyType)
+	}
+	if projection.KeyPath != "tls.key" || projection.CertificateChainPath != "tls.crt" {
+		t.Errorf("podCertificate paths = (%q, %q), want (tls.key, tls.crt)", projection.KeyPath, projection.CertificateChainPath)
+	}
+	if projection.UserAnnotations["certificates.podplane.dev/mode"] != "service" || projection.UserAnnotations["certificates.podplane.dev/service"] != "envoy-gateway" {
+		t.Errorf("podCertificate userAnnotations = %#v, want Envoy service annotations", projection.UserAnnotations)
 	}
 	var daemonSet appsv1.DaemonSet
 	decodeValue(t, got[1].Value, &daemonSet)
