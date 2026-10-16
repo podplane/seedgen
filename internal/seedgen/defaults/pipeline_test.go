@@ -63,6 +63,19 @@ func TestPipeline(t *testing.T) {
 	if !minimalInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-fluxcd/fluxcd") {
 		t.Fatal("minimal include rules should match core Flux HelmRelease")
 	}
+	for _, key := range []string{
+		"/registry/runtimeclasses/gvisor",
+		"/registry/runtimeclasses/runc",
+		"/registry/mutatingadmissionpolicies/platform-runtime-class-default-map",
+		"/registry/mutatingadmissionpolicybindings/platform-runtime-class-default-mapb",
+		"/registry/validatingadmissionpolicies/platform-runtime-class-vap",
+		"/registry/validatingadmissionpolicybindings/platform-runtime-class-vapb",
+	} {
+		// Restored Pods must be admitted under the full runtime policy.
+		if !minimalInclude.Matches(key) || minimalExclude.Matches(key) {
+			t.Fatalf("minimal seed rules should keep runtime policy record %s", key)
+		}
+	}
 	if minimalInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-envoy-gateway/envoy-gateway") {
 		t.Fatal("minimal include rules should not match addon HelmRelease")
 	}

@@ -16,9 +16,20 @@ type expectedProfile struct {
 	prefixes []string
 }
 
+// runtimePolicyKeys are platform-runtime's records. Every managed seed
+// needs all of them: the validating policy alone rejects restored Pods.
+var runtimePolicyKeys = []string{
+	"/registry/runtimeclasses/gvisor",
+	"/registry/runtimeclasses/runc",
+	"/registry/mutatingadmissionpolicies/platform-runtime-class-default-map",
+	"/registry/mutatingadmissionpolicybindings/platform-runtime-class-default-mapb",
+	"/registry/validatingadmissionpolicies/platform-runtime-class-vap",
+	"/registry/validatingadmissionpolicybindings/platform-runtime-class-vapb",
+}
+
 var expectedProfiles = map[string]expectedProfile{
 	"minimal": {
-		keys: []string{
+		keys: append([]string{
 			"_netsy",
 			"/registry/source.toolkit.fluxcd.io/gitrepositories/platform-components/podplane-components",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-components/platform-components",
@@ -26,13 +37,14 @@ var expectedProfiles = map[string]expectedProfile{
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/fluxcd-crds",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/gateway-api-crds",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/platform-rbac",
+			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/platform-runtime",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cilium/cilium",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-coredns/coredns",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-fluxcd/fluxcd",
-		},
+		}, runtimePolicyKeys...),
 	},
 	"recommended": {
-		keys: []string{
+		keys: append([]string{
 			"_netsy",
 			"/registry/source.toolkit.fluxcd.io/gitrepositories/platform-components/podplane-components",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-components/platform-components",
@@ -42,6 +54,7 @@ var expectedProfiles = map[string]expectedProfile{
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/fluxcd-crds",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/gateway-api-crds",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/platform-rbac",
+			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/platform-runtime",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/podplane-operator-crds",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/secrets-store-csi-driver-crds",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-agent-sandbox/agent-sandbox",
@@ -58,7 +71,7 @@ var expectedProfiles = map[string]expectedProfile{
 			"/registry/gateway.networking.k8s.io/httproutes/platform-envoy-gateway/platform-http-to-https-redirect-httproute",
 			"/registry/secrets-store.csi.x-k8s.io/secretproviderclasses/platform-envoy-gateway/platform-envoy-gateway-ingress-certificates",
 			"/registry/secrets-store.csi.x-k8s.io/secretproviderclasses/platform-podplane-operator/platform-podplane-operator",
-		},
+		}, runtimePolicyKeys...),
 	},
 }
 
