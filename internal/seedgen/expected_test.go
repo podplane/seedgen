@@ -36,7 +36,7 @@ func TestCheckExpectedRecommendedReportsMissing(t *testing.T) {
 		"platform-envoy-gateway/envoy-gateway",
 		"platform-envoy-gateway/platform-envoy-gateway",
 		"platform-http-to-https-redirect-httproute",
-		"platform-envoy-gateway-ingress-certificates",
+		"platform-podplane-operator/platform-podplane-operator",
 	} {
 		if !strings.Contains(msg, want) {
 			t.Fatalf("missing error did not mention %q: %s", want, msg)

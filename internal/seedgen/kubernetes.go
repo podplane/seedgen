@@ -17,6 +17,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	flowcontrolv1 "k8s.io/api/flowcontrol/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	nodev1 "k8s.io/api/node/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	resourcev1beta1 "k8s.io/api/resource/v1beta1"
@@ -161,6 +162,7 @@ func getKubernetesCodecs() (serializer.CodecFactory, error) {
 			{"core/v1", corev1.AddToScheme},
 			{"flowcontrol/v1", flowcontrolv1.AddToScheme},
 			{"networking/v1", networkingv1.AddToScheme},
+			{"node/v1", nodev1.AddToScheme},
 			{"policy/v1", policyv1.AddToScheme},
 			{"rbac/v1", rbacv1.AddToScheme},
 			{"resource/v1beta1", resourcev1beta1.AddToScheme},

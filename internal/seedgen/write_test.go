@@ -18,6 +18,7 @@ import (
 	"github.com/podplane/seedgen/pkg/pipeline"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	nodev1 "k8s.io/api/node/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -166,6 +167,15 @@ func TestWriteRecordFilesWritesDecodedTransformedValues(t *testing.T) {
 				"spec":       map[string]any{"enabled": false},
 			}),
 		},
+		{
+			Revision: 2,
+			Key:      []byte("/registry/runtimeclasses/gvisor"),
+			Value: kubernetesProtobufValue(t, &nodev1.RuntimeClass{
+				TypeMeta:   metav1.TypeMeta{APIVersion: "node.k8s.io/v1", Kind: "RuntimeClass"},
+				ObjectMeta: metav1.ObjectMeta{Name: "gvisor"},
+				Handler:    "runsc",
+			}, nodev1.SchemeGroupVersion),
+		},
 	}
 	transforms := pipeline.Transforms{
 		pipeline.KeyTransform{
@@ -204,6 +214,19 @@ func TestWriteRecordFilesWritesDecodedTransformedValues(t *testing.T) {
 	}
 	if !got.Value.Spec.Enabled {
 		t.Fatalf("value.spec.enabled = false, want transformed true")
+	}
+	data, err = os.ReadFile(filepath.Join(dir, "_registry_runtimeclasses_gvisor.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var runtimeClass struct {
+		Value nodev1.RuntimeClass `json:"value"`
+	}
+	if err := json.Unmarshal(data, &runtimeClass); err != nil {
+		t.Fatal(err)
+	}
+	if runtimeClass.Value.Name != "gvisor" || runtimeClass.Value.Handler != "runsc" {
+		t.Fatalf("RuntimeClass = %#v", runtimeClass.Value)
 	}
 }
 
@@ -660,6 +683,9 @@ func testKubernetesCodecs(t *testing.T) serializer.CodecFactory {
 	}
 	if err := appsv1.AddToScheme(scheme); err != nil {
 		t.Fatalf("register apps/v1 scheme: %v", err)
+	}
+	if err := nodev1.AddToScheme(scheme); err != nil {
+		t.Fatalf("register node/v1 scheme: %v", err)
 	}
 	return serializer.NewCodecFactory(scheme)
 }

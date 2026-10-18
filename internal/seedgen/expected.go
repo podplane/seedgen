@@ -69,7 +69,6 @@ var expectedProfiles = map[string]expectedProfile{
 			"/registry/gateway.networking.k8s.io/gatewayclasses/platform-envoy-gateway",
 			"/registry/gateway.networking.k8s.io/gateways/platform-envoy-gateway/platform-envoy-gateway",
 			"/registry/gateway.networking.k8s.io/httproutes/platform-envoy-gateway/platform-http-to-https-redirect-httproute",
-			"/registry/secrets-store.csi.x-k8s.io/secretproviderclasses/platform-envoy-gateway/platform-envoy-gateway-ingress-certificates",
 			"/registry/secrets-store.csi.x-k8s.io/secretproviderclasses/platform-podplane-operator/platform-podplane-operator",
 		}, runtimePolicyKeys...),
 	},

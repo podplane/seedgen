@@ -392,7 +392,9 @@ func removeComponentsGitSecretRef(obj map[string]any) bool {
 // settings from the platform-components HelmRelease before seed output.
 func removeSecretsProviderValues(obj map[string]any) bool {
 	var changed bool
-	changed = deleteNestedKey(obj, []string{"spec", "values", "platform", "components", "values", "podplane-operator", "podplane", "operator", "config", "cluster", "secrets"}, "providers") || changed
+	path := []string{"spec", "values", "platform", "components", "values", "podplane-operator", "podplane", "operator", "config", "secrets"}
+	changed = deleteNestedKey(obj, path, "providers") || changed
+	changed = deleteNestedKey(obj, path, "defaultProvider") || changed
 	changed = deleteNestedKey(obj, []string{"spec", "values", "platform", "components", "values", "secrets-store-csi-provider-openbao", "podplane", "secrets"}, "providers") || changed
 	return changed
 }

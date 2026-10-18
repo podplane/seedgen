@@ -99,6 +99,9 @@ func TestPipeline(t *testing.T) {
 	if !recommendedExclude.Matches("/registry/secrets/platform-envoy-gateway/bundle-9464ba90046c9f91c931fcb4") {
 		t.Fatal("recommended exclude rules should drop domain-specific Envoy SDS Secrets")
 	}
+	if !recommendedExclude.Matches("/registry/secrets/platform-envoy-gateway/node") {
+		t.Fatal("recommended exclude rules should drop node Envoy SDS Secret")
+	}
 	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-podplane-operator/podplane-operator") {
 		t.Fatal("recommended include rules should match podplane-operator HelmRelease")
 	}
@@ -241,7 +244,13 @@ func TestTransformsRemoveComponentsGitSecretRef(t *testing.T) {
 func TestTransformsRemoveSecretsProviderValues(t *testing.T) {
 	t.Parallel()
 
-	value := []byte(`{"apiVersion":"helm.toolkit.fluxcd.io/v2","kind":"HelmRelease","metadata":{"name":"platform-components"},"spec":{"values":{"platform":{"components":{"values":{"podplane-operator":{"podplane":{"operator":{"config":{"cluster":{"id":"cluster","secrets":{"providers":{"local-fakevault":{"kind":"openbao","address":"https://10.0.0.1:19443/vault/cluster","caCert":"cert"},"production-vault":{"kind":"vault","address":"https://vault.example.com"}}}}}}}},"secrets-store-csi-provider-openbao":{"podplane":{"secrets":{"providers":{"local-fakevault":{"caCert":"cert"}}}}}}}}}}}`)
+	value := []byte(`{"apiVersion":"helm.toolkit.fluxcd.io/v2","kind":"HelmRelease","metadata":{"name":"platform-components"},"spec":{"values":{"platform":{"components":{"values":{
+		"podplane-operator":{"podplane":{"operator":{"config":{
+			"cluster":{"id":"cluster"},
+			"secrets":{"defaultProvider":"local-fakevault","keyRotation":"6h","providers":{"local-fakevault":{"kind":"openbao","address":"https://10.0.0.1:19443/vault/cluster","caCert":"cert"},"production-vault":{"kind":"vault","address":"https://vault.example.com"}}}
+		}}}},
+		"secrets-store-csi-provider-openbao":{"podplane":{"secrets":{"providers":{"local-fakevault":{"caCert":"cert"}}}}}
+	}}}}}}`)
 	got, err := Transforms.TransformValue([]byte("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-components/platform-components"), value)
 	if err != nil {
 		t.Fatalf("TransformValue(platform-components): %v", err)
@@ -254,6 +263,11 @@ func TestTransformsRemoveSecretsProviderValues(t *testing.T) {
 	operatorCluster := componentValues["podplane-operator"].(map[string]any)["podplane"].(map[string]any)["operator"].(map[string]any)["config"].(map[string]any)["cluster"].(map[string]any)
 	if _, ok := operatorCluster["secrets"]; ok {
 		t.Fatalf("operator secrets provider values were not removed: %s", got)
+	}
+	config := componentValues["podplane-operator"].(map[string]any)["podplane"].(map[string]any)["operator"].(map[string]any)["config"].(map[string]any)
+	secrets := config["secrets"].(map[string]any)
+	if len(secrets) != 1 || secrets["keyRotation"] != "6h" || operatorCluster["id"] != "cluster" {
+		t.Fatalf("bootstrap secrets not cleaned or other config changed: %s", got)
 	}
 	if _, ok := componentValues["secrets-store-csi-provider-openbao"]; ok {
 		t.Fatalf("empty OpenBao provider values were not pruned: %s", got)

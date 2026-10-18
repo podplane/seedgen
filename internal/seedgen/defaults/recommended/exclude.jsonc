@@ -6,6 +6,8 @@
 // common root exclude rules are always applied first.
 {
   "keys": [
+    // Node SDS references are also regenerated for the target cluster.
+    "/registry/secrets/platform-envoy-gateway/node",
     "/registry/daemonsets/platform-envoy-gateway/platform-envoy-gateway"
   ],
   "prefixes": [
