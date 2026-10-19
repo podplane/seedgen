@@ -5,7 +5,8 @@ A utility for creating Podplane seed files from [Netsy](https://netsy.dev) chunk
 `seedgen` is a Go tool that turns the on-disk state of a running
 Netsy cluster into a fresh `.netsy` snapshot file suitable
 for use as a Podplane seed file (e.g. the one downloaded by
-`podplane deps download` / `podplane hooks netsy-seed` as `recommended.netsy`).
+`podplane deps download` / `podplane hooks netsy-seed` as `agentic.netsy`,
+Podplane's default profile).
 
 ## How it works
 
@@ -32,8 +33,8 @@ seedgen --name <name> [flags]
 seedgen --cluster <id> --name <name> [flags]          # reads the named local cluster
 seedgen --input <dir>  --name <name> [flags]
 seedgen --dry-run --name <name> [flags]               # any of the above without writing
-seedgen --name recommended --output ../seeds
-seedgen --name recommended --verify-components components.json
+seedgen --name platform --output /tmp/generated-seeds
+seedgen --name agentic --verify-components components.json
 ```
 
 When neither `--cluster` nor `--input` is set, `seedgen` reads the `default`
@@ -41,11 +42,11 @@ local cluster.
 
 The key counts are printed to stderr. The included, excluded, and ignored keys
 are written to report files under `<output-dir>/reports/<name>/` by default
-(for example, `../seeds/reports/recommended/` for
-`--output ../seeds --name recommended`). The records written to the seed are
+(for example, `/tmp/generated-seeds/reports/platform/` for
+`--output /tmp/generated-seeds --name platform`). The records written to the seed are
 also written as JSON files under `<output-dir>/records/<name>/`, with each file
 named from the record key by replacing `/` with `_`. Because both report and
-record paths include `<name>`, separate `minimal` and `recommended` runs keep
+record paths include `<name>`, separate `minimal`, `platform` and `agentic` runs keep
 separate audit trees. The snapshot itself is written to
 `<output-dir>/<name>.netsy`.
 
@@ -58,15 +59,15 @@ separate audit trees. The snapshot itself is written to
 | `--leader-id`           | `seed`        | `LeaderID` stamped on the output snapshot.                                                            |
 | `--include`             | (embedded)    | Path to a JSONC include file overriding the pipeline default.                                         |
 | `--exclude`             | (embedded)    | Path to a JSONC exclude file overriding the pipeline default.                                         |
-| `--expect`              | name-derived  | Check for expected records based on the type of seed. Defaults to `--name` when name is `recommended` or `minimal`; otherwise required. Options: `recommended`, `minimal`, or `none`. |
+| `--expect`              | name-derived  | Check expected records and select seed rules/transforms. Inferred for names `platform`, `agentic`, `minimal`; otherwise required. Options: `platform`, `agentic`, `minimal`, `none`. |
 | `--verify-components`   | (unset)       | Path to a components manifest; fail if any emitted seed image is absent from it or if component images mix mirrored and upstream refs. |
 | `--dry-run`             | `false`       | Run the full pipeline and write key reports but do not write the output file.                         |
 
-The `recommended` expectation guard is intended for published seed snapshots.
+The `platform`, `agentic` and `minimal` expectation guards are intended for published seed snapshots.
 The check runs after the current-state flattening and include/exclude filters,
 so it catches both clusters that were exported too early and filter rules that
 accidentally drop required platform records. The `--expect` value is inferred
-from `--name recommended` or `--name minimal`. Use `--expect none` for
+from the matching published name. Use `--expect none` for
 ad-hoc/custom/debug exports, or pass an explicit `--expect` with any custom
 `--name`.
 
@@ -80,16 +81,24 @@ mid-reconciliation or a component chart is missing image mirror plumbing.
 ## Include / exclude rules
 
 The embedded rules are grouped by seed profile. Common bare-Kubernetes rules
-live at the defaults root, while profile rules live under `minimal/` and
-`recommended/`:
+live at the defaults root, while profile rules live under `minimal/`, `platform/` and
+`agentic/`:
 
 - `minimal` uses common + minimal include rules, and common + minimal exclude
   rules.
-- `recommended` uses common + minimal + recommended include rules, and common +
-  recommended exclude rules. It does not inherit minimal excludes.
+- `platform` is the shared platform stack (Envoy Gateway, Podplane operator, Secrets
+  Store CSI and registry), without Agent Sandbox. It uses common + minimal +
+  platform includes, common + agentic shared excludes + platform-only Sandbox excludes.
+- `agentic` is platform + Agent Sandbox. It adds agentic includes and uses only
+  common + agentic shared excludes, never platform's Sandbox exclusions.
+- Neither platform seed inherits minimal excludes. Both scale the Envoy
+  Gateway controller Deployment to zero for bootstrap. Platform removes Sandbox
+  app/CRD/value overrides from the parent platform-components HelmRelease
+  (chart defaults disable Sandbox) and Sandbox permissions from aggregated
+  admin/edit/view roles, retaining other platform overrides.
 
 Minimal also has a few minimal-only transforms for records shared with
-recommended: reset the `platform-components` HelmRelease values, clear stale
+platform/agentic: reset the `platform-components` HelmRelease values, clear stale
 NodePort allocation data, and remove addon-derived RBAC rules from Kubernetes'
 default aggregated ClusterRoles.
 

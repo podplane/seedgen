@@ -79,12 +79,28 @@ func TestWriteKeyReports(t *testing.T) {
 func TestResolveExpectAndReportNameFromPublishedName(t *testing.T) {
 	t.Parallel()
 	cmd := NewRootCmd(pipeline.Pipeline{})
-	expect, reportName, err := resolveExpectAndReportName(cmd, options{name: "recommended"})
-	if err != nil {
-		t.Fatalf("resolveExpectAndReportName: %v", err)
+	for _, name := range []string{"platform", "agentic", "minimal"} {
+		expect, reportName, err := resolveExpectAndReportName(cmd, options{name: name})
+		if err != nil || expect != name || reportName != name {
+			t.Fatalf("resolveExpectAndReportName(%s) = %q, %q, %v", name, expect, reportName, err)
+		}
 	}
-	if expect != "recommended" || reportName != "recommended" {
-		t.Fatalf("resolveExpectAndReportName = %q, %q; want recommended, recommended", expect, reportName)
+	for _, name := range []string{"recommended", "app"} {
+		if _, _, err := resolveExpectAndReportName(cmd, options{name: name}); err == nil {
+			t.Fatalf("%s must not infer a profile", name)
+		}
+	}
+	if _, _, err := resolveExpectAndReportName(cmd, options{}); err == nil {
+		t.Fatal("must not infer an implicit profile")
+	}
+	if err := cmd.Flags().Set("expect", "none"); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"recommended", "app", "debug"} {
+		expect, reportName, err := resolveExpectAndReportName(cmd, options{name: name, expect: "none"})
+		if err != nil || expect != "none" || reportName != name {
+			t.Fatalf("custom %s = %q, %q, %v", name, expect, reportName, err)
+		}
 	}
 }
 

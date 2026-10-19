@@ -43,12 +43,11 @@ var expectedProfiles = map[string]expectedProfile{
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-fluxcd/fluxcd",
 		}, runtimePolicyKeys...),
 	},
-	"recommended": {
+	"platform": {
 		keys: append([]string{
 			"_netsy",
 			"/registry/source.toolkit.fluxcd.io/gitrepositories/platform-components/podplane-components",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-components/platform-components",
-			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/agent-sandbox-crds",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/cilium-crds",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/envoy-gateway-crds",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/fluxcd-crds",
@@ -57,7 +56,6 @@ var expectedProfiles = map[string]expectedProfile{
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/platform-runtime",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/podplane-operator-crds",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/secrets-store-csi-driver-crds",
-			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-agent-sandbox/agent-sandbox",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cilium/cilium",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-coredns/coredns",
 			"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-envoy-gateway/envoy-gateway",
@@ -74,6 +72,14 @@ var expectedProfiles = map[string]expectedProfile{
 	},
 }
 
+func init() {
+	platform := expectedProfiles["platform"]
+	expectedProfiles["agentic"] = expectedProfile{keys: append(append([]string{}, platform.keys...),
+		"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/agent-sandbox-crds",
+		"/registry/helm.toolkit.fluxcd.io/helmreleases/platform-agent-sandbox/agent-sandbox",
+	)}
+}
+
 // CheckExpected verifies that the kept record set contains the records expected
 // for profile. An empty profile, or "none", disables the check.
 func CheckExpected(profile string, records []*datafile.Record) error {
@@ -82,7 +88,7 @@ func CheckExpected(profile string, records []*datafile.Record) error {
 	}
 	expected, ok := expectedProfiles[profile]
 	if !ok {
-		return fmt.Errorf("unknown expected seed profile %q (want recommended, minimal, or none)", profile)
+		return fmt.Errorf("unknown expected seed profile %q (want platform, agentic, minimal, or none)", profile)
 	}
 
 	keys := make(map[string]struct{}, len(records))

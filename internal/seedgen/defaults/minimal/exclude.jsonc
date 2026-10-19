@@ -4,7 +4,7 @@
 //
 // Exclude rules applied only when generating the minimal profile. These are
 // composed with the common root exclude rules but are not inherited by the
-// recommended profile.
+// platform or agentic profiles.
 {
   "keys": [],
   "prefixes": [
@@ -75,7 +75,7 @@
     "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-podplane-operator-crds",
     "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-secrets-store-csi-driver-crds",
 
-    // Recommended Gateway API resources. Gateway API CRDs stay in minimal.
+    // Platform Gateway API resources. Gateway API CRDs stay in minimal.
     "/registry/gateway.networking.k8s.io/gatewayclasses/platform-envoy-gateway",
     "/registry/gateway.networking.k8s.io/gateways/platform-envoy-gateway/",
     "/registry/gateway.networking.k8s.io/httproutes/platform-envoy-gateway/",

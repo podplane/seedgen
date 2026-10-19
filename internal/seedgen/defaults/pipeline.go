@@ -24,11 +24,17 @@ var minimalIncludeJSONC []byte
 //go:embed minimal/exclude.jsonc
 var minimalExcludeJSONC []byte
 
-//go:embed recommended/include.jsonc
-var recommendedIncludeJSONC []byte
+//go:embed platform/include.jsonc
+var platformIncludeJSONC []byte
 
-//go:embed recommended/exclude.jsonc
-var recommendedExcludeJSONC []byte
+//go:embed platform/exclude.jsonc
+var platformExcludeJSONC []byte
+
+//go:embed agentic/include.jsonc
+var agenticIncludeJSONC []byte
+
+//go:embed agentic/exclude.jsonc
+var agenticExcludeJSONC []byte
 
 // Pipeline returns the built-in Podplane seed generation pipeline.
 func Pipeline() pipeline.Pipeline {
@@ -39,8 +45,10 @@ func Pipeline() pipeline.Pipeline {
 			switch profile {
 			case "minimal":
 				return MinimalTransforms
-			case "recommended":
-				return RecommendedTransforms
+			case "platform":
+				return PlatformTransforms
+			case "agentic":
+				return AgenticTransforms
 			default:
 				return Transforms
 			}
@@ -62,16 +70,23 @@ func includeRules(profile string) (*pipeline.Rules, error) {
 			return nil, err
 		}
 		return pipeline.MergeRules(common, minimal), nil
-	case "recommended":
+	case "platform", "agentic":
 		minimal, err := pipeline.LoadRulesBytes(minimalIncludeJSONC, "<embedded minimal/include.jsonc>")
 		if err != nil {
 			return nil, err
 		}
-		recommended, err := pipeline.LoadRulesBytes(recommendedIncludeJSONC, "<embedded recommended/include.jsonc>")
+		platform, err := pipeline.LoadRulesBytes(platformIncludeJSONC, "<embedded platform/include.jsonc>")
 		if err != nil {
 			return nil, err
 		}
-		return pipeline.MergeRules(common, minimal, recommended), nil
+		if profile == "agentic" {
+			agentic, err := pipeline.LoadRulesBytes(agenticIncludeJSONC, "<embedded agentic/include.jsonc>")
+			if err != nil {
+				return nil, err
+			}
+			return pipeline.MergeRules(common, minimal, platform, agentic), nil
+		}
+		return pipeline.MergeRules(common, minimal, platform), nil
 	case "", "none":
 		return common, nil
 	default:
@@ -92,12 +107,19 @@ func excludeRules(profile string) (*pipeline.Rules, error) {
 			return nil, err
 		}
 		return pipeline.MergeRules(common, minimal), nil
-	case "recommended":
-		recommended, err := pipeline.LoadRulesBytes(recommendedExcludeJSONC, "<embedded recommended/exclude.jsonc>")
+	case "platform", "agentic":
+		shared, err := pipeline.LoadRulesBytes(agenticExcludeJSONC, "<embedded agentic/exclude.jsonc>")
 		if err != nil {
 			return nil, err
 		}
-		return pipeline.MergeRules(common, recommended), nil
+		if profile == "platform" {
+			platform, err := pipeline.LoadRulesBytes(platformExcludeJSONC, "<embedded platform/exclude.jsonc>")
+			if err != nil {
+				return nil, err
+			}
+			return pipeline.MergeRules(common, shared, platform), nil
+		}
+		return pipeline.MergeRules(common, shared), nil
 	case "", "none":
 		return common, nil
 	default:

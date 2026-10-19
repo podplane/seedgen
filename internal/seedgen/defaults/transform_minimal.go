@@ -11,7 +11,7 @@ import (
 )
 
 // MinimalTransforms extends the built-in transforms with minimal-profile
-// cleanup for records that intentionally overlap with the recommended profile.
+// cleanup for records that intentionally overlap with platform and agentic profiles.
 var MinimalTransforms = append(append(pipeline.Transforms{}, Transforms...),
 	pipeline.KeyTransform{Key: "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-components/platform-components", JSONTransforms: []pipeline.JSONTransform{resetPlatformComponentsValues}},
 	pipeline.KeyTransform{Key: "/registry/ranges/servicenodeports", JSONTransforms: []pipeline.JSONTransform{resetServiceNodePortsRange}},
@@ -20,7 +20,7 @@ var MinimalTransforms = append(append(pipeline.Transforms{}, Transforms...),
 	pipeline.KeyTransform{Key: "/registry/clusterroles/view", JSONTransforms: []pipeline.JSONTransform{removeAddonAggregatedRBACRules}, ProtobufTransforms: []pipeline.ProtobufTransform{removeAddonAggregatedRBACRulesObject}},
 )
 
-// minimalAddonRBACAPIGroups lists recommended-only API groups whose aggregated
+// minimalAddonRBACAPIGroups lists addon API groups whose aggregated
 // RBAC rules should be removed from default ClusterRoles in minimal seeds.
 var minimalAddonRBACAPIGroups = map[string]struct{}{
 	"acme.cert-manager.io":       {},
@@ -30,7 +30,7 @@ var minimalAddonRBACAPIGroups = map[string]struct{}{
 	"secrets-store.csi.x-k8s.io": {},
 }
 
-// resetPlatformComponentsValues removes recommended addon values from the
+// resetPlatformComponentsValues removes platform and agentic addon values from the
 // platform-components HelmRelease so the chart reconciles with its core-only
 // defaults in minimal seeds.
 func resetPlatformComponentsValues(obj map[string]any) bool {
@@ -46,7 +46,7 @@ func resetPlatformComponentsValues(obj map[string]any) bool {
 }
 
 // resetServiceNodePortsRange clears stale NodePort allocator bits that may have
-// been consumed by recommended-only LoadBalancer/NodePort Services.
+// been consumed by platform or agentic addon LoadBalancer/NodePort Services.
 func resetServiceNodePortsRange(obj map[string]any) bool {
 	if obj["data"] == "" {
 		return false
@@ -56,7 +56,7 @@ func resetServiceNodePortsRange(obj map[string]any) bool {
 }
 
 // removeAddonAggregatedRBACRules removes cert-manager/acme rules aggregated
-// into Kubernetes' default admin/edit/view ClusterRoles by recommended addons.
+// into Kubernetes' default admin/edit/view ClusterRoles by platform addons.
 func removeAddonAggregatedRBACRules(obj map[string]any) bool {
 	rules, ok := obj["rules"].([]any)
 	if !ok {
@@ -78,7 +78,7 @@ func removeAddonAggregatedRBACRules(obj map[string]any) bool {
 	return true
 }
 
-// removeAddonAggregatedRBACRulesObject removes recommended-only addon RBAC
+// removeAddonAggregatedRBACRulesObject removes platform and agentic addon RBAC
 // rules from protobuf-decoded Kubernetes ClusterRole records.
 func removeAddonAggregatedRBACRulesObject(obj runtime.Object) bool {
 	clusterRole, ok := obj.(*rbacv1.ClusterRole)

@@ -63,7 +63,7 @@ suitable for use as a Podplane seed.`,
 	cmd.Flags().StringVar(&opts.leaderID, "leader-id", "seed", "LeaderID stamped on the output snapshot")
 	cmd.Flags().StringVar(&opts.includeFile, "include", "", "Path to a JSONC include file overriding the pipeline default")
 	cmd.Flags().StringVar(&opts.excludeFile, "exclude", "", "Path to a JSONC exclude file overriding the pipeline default")
-	cmd.Flags().StringVar(&opts.expect, "expect", "", "Check for expected records based on the type of seed. Defaults to --name when name is recommended or minimal. Options: recommended, minimal, or none")
+	cmd.Flags().StringVar(&opts.expect, "expect", "", "Check for expected records based on the type of seed. Defaults to --name when name is platform, agentic or minimal. Options: platform, agentic, minimal, or none")
 	cmd.Flags().StringVar(&opts.verify, "verify-components", "", "Path to components.json manifest; fail if emitted seed images are absent from it")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Run the full pipeline and write key reports but do not write the output file")
 	return cmd
@@ -155,10 +155,10 @@ func resolveExpectAndReportName(cmd *cobra.Command, opts options) (expect, repor
 	if expectSet {
 		return opts.expect, opts.name, nil
 	}
-	if opts.name == "recommended" || opts.name == "minimal" {
+	if opts.name == "platform" || opts.name == "agentic" || opts.name == "minimal" {
 		return opts.name, opts.name, nil
 	}
-	return "", "", fmt.Errorf("--expect is required when --name is not recommended or minimal")
+	return "", "", fmt.Errorf("--expect is required when --name is not platform, agentic or minimal")
 }
 
 // resolveOutputPath returns the snapshot path derived from the output directory

@@ -45,6 +45,12 @@ func TestPipeline(t *testing.T) {
 	if include.Matches("/registry/ipaddresses/198.18.5.149") {
 		t.Fatal("default include rules should not match generated IPAddress records")
 	}
+	if !include.Matches("/registry/serviceaccounts/default/default") {
+		t.Fatal("default include rules should keep the bootstrap ServiceAccount")
+	}
+	if include.Matches("/registry/serviceaccounts/default/example-app") {
+		t.Fatal("default include rules should not capture application ServiceAccounts")
+	}
 	if !exclude.Matches("/registry/events/default/example") {
 		t.Fatal("default exclude rules should match Kubernetes events")
 	}
@@ -80,57 +86,57 @@ func TestPipeline(t *testing.T) {
 		t.Fatal("minimal include rules should not match addon HelmRelease")
 	}
 	if !minimalExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-envoy-gateway/envoy-gateway") {
-		t.Fatal("minimal exclude rules should drop recommended addon Flux resources")
+		t.Fatal("minimal exclude rules should drop platform addon Flux resources")
 	}
-	recommendedInclude, err := p.IncludeRules("recommended")
+	agenticInclude, err := p.IncludeRules("agentic")
 	if err != nil {
-		t.Fatalf("recommended IncludeRules: %v", err)
+		t.Fatalf("agentic IncludeRules: %v", err)
 	}
-	recommendedExclude, err := p.ExcludeRules("recommended")
+	agenticExclude, err := p.ExcludeRules("agentic")
 	if err != nil {
-		t.Fatalf("recommended ExcludeRules: %v", err)
+		t.Fatalf("agentic ExcludeRules: %v", err)
 	}
-	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-envoy-gateway/envoy-gateway") {
-		t.Fatal("recommended include rules should match addon HelmRelease")
+	if !agenticInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-envoy-gateway/envoy-gateway") {
+		t.Fatal("agentic include rules should match addon HelmRelease")
 	}
-	if !recommendedInclude.Matches("/registry/gateway.envoyproxy.io/envoyproxies/platform-envoy-gateway/platform-envoy-gateway") {
-		t.Fatal("recommended include rules should match EnvoyProxy records")
+	if !agenticInclude.Matches("/registry/gateway.envoyproxy.io/envoyproxies/platform-envoy-gateway/platform-envoy-gateway") {
+		t.Fatal("agentic include rules should match EnvoyProxy records")
 	}
-	if !recommendedExclude.Matches("/registry/secrets/platform-envoy-gateway/bundle-9464ba90046c9f91c931fcb4") {
-		t.Fatal("recommended exclude rules should drop domain-specific Envoy SDS Secrets")
+	if !agenticExclude.Matches("/registry/secrets/platform-envoy-gateway/bundle-9464ba90046c9f91c931fcb4") {
+		t.Fatal("agentic exclude rules should drop domain-specific Envoy SDS Secrets")
 	}
-	if !recommendedExclude.Matches("/registry/secrets/platform-envoy-gateway/node") {
-		t.Fatal("recommended exclude rules should drop node Envoy SDS Secret")
+	if !agenticExclude.Matches("/registry/secrets/platform-envoy-gateway/node") {
+		t.Fatal("agentic exclude rules should drop node Envoy SDS Secret")
 	}
-	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-podplane-operator/podplane-operator") {
-		t.Fatal("recommended include rules should match podplane-operator HelmRelease")
+	if !agenticInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-podplane-operator/podplane-operator") {
+		t.Fatal("agentic include rules should match podplane-operator HelmRelease")
 	}
-	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/podplane-operator-crds") {
-		t.Fatal("recommended include rules should match podplane-operator CRD HelmRelease")
+	if !agenticInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/podplane-operator-crds") {
+		t.Fatal("agentic include rules should match podplane-operator CRD HelmRelease")
 	}
-	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-secrets-store-csi-driver/secrets-store-csi-driver") {
-		t.Fatal("recommended include rules should match Secrets Store CSI Driver HelmRelease")
+	if !agenticInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-secrets-store-csi-driver/secrets-store-csi-driver") {
+		t.Fatal("agentic include rules should match Secrets Store CSI Driver HelmRelease")
 	}
-	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/secrets-store-csi-driver-crds") {
-		t.Fatal("recommended include rules should match Secrets Store CSI Driver CRD HelmRelease")
+	if !agenticInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/secrets-store-csi-driver-crds") {
+		t.Fatal("agentic include rules should match Secrets Store CSI Driver CRD HelmRelease")
 	}
-	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-secrets-store-csi-provider-openbao/secrets-store-csi-provider-openbao") {
-		t.Fatal("recommended include rules should match Secrets Store CSI provider HelmReleases")
+	if !agenticInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-secrets-store-csi-provider-openbao/secrets-store-csi-provider-openbao") {
+		t.Fatal("agentic include rules should match Secrets Store CSI provider HelmReleases")
 	}
-	if !recommendedInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-zot-registry/zot-registry") {
-		t.Fatal("recommended include rules should match zot-registry HelmRelease")
+	if !agenticInclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-zot-registry/zot-registry") {
+		t.Fatal("agentic include rules should match zot-registry HelmRelease")
 	}
-	if !recommendedInclude.Matches("/registry/roles/platform-agent-sandbox/agent-sandbox-controller") {
-		t.Fatal("recommended include rules should match agent-sandbox namespaced Role")
+	if !agenticInclude.Matches("/registry/roles/platform-agent-sandbox/agent-sandbox-controller") {
+		t.Fatal("agentic include rules should match agent-sandbox namespaced Role")
 	}
-	if !recommendedInclude.Matches("/registry/rolebindings/platform-agent-sandbox/agent-sandbox-controller") {
-		t.Fatal("recommended include rules should match agent-sandbox namespaced RoleBinding")
+	if !agenticInclude.Matches("/registry/rolebindings/platform-agent-sandbox/agent-sandbox-controller") {
+		t.Fatal("agentic include rules should match agent-sandbox namespaced RoleBinding")
 	}
-	if !recommendedInclude.Matches("/registry/secrets.podplane.dev/secretproviderbindings/platform-aok/aok-source-controller") {
-		t.Fatal("recommended include rules should match SecretProviderBinding records")
+	if !agenticInclude.Matches("/registry/secrets.podplane.dev/secretproviderbindings/platform-aok/aok-source-controller") {
+		t.Fatal("agentic include rules should match SecretProviderBinding records")
 	}
-	if !recommendedInclude.Matches("/registry/secrets-api.podplane.dev/secretproviderkeyspaces/platform-aok/aws-secrets-manager.aok-source-controller") {
-		t.Fatal("recommended include rules should match SecretProviderKeyspace records")
+	if !agenticInclude.Matches("/registry/secrets-api.podplane.dev/secretproviderkeyspaces/platform-aok/aws-secrets-manager.aok-source-controller") {
+		t.Fatal("agentic include rules should match SecretProviderKeyspace records")
 	}
 	for _, key := range []string{
 		"/registry/namespaces/platform-secrets-store-csi-provider-openbao",
@@ -141,19 +147,19 @@ func TestPipeline(t *testing.T) {
 		"/registry/rolebindings/platform-secrets-store-csi-provider-openbao/platform-secrets-store-csi-provider-openbao-csi-provider-rolebinding",
 		"/registry/daemonsets/platform-secrets-store-csi-provider-openbao/platform-secrets-store-csi-provider-openbao-csi-provider",
 	} {
-		if !recommendedInclude.Matches(key) {
-			t.Fatalf("recommended include rules should match OpenBao provider record %q", key)
+		if !agenticInclude.Matches(key) {
+			t.Fatalf("agentic include rules should match OpenBao provider record %q", key)
 		}
 	}
 	openBaoHMACKey := "/registry/secrets/platform-secrets-store-csi-provider-openbao/openbao-csi-provider-hmac-key"
-	if !recommendedInclude.Matches(openBaoHMACKey) || !recommendedExclude.Matches(openBaoHMACKey) {
-		t.Fatal("recommended rules should match and then exclude the generated OpenBao HMAC Secret")
+	if !agenticInclude.Matches(openBaoHMACKey) || !agenticExclude.Matches(openBaoHMACKey) {
+		t.Fatal("agentic rules should match and then exclude the generated OpenBao HMAC Secret")
 	}
-	if recommendedExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-envoy-gateway/envoy-gateway") {
-		t.Fatal("recommended exclude rules should not inherit minimal addon excludes")
+	if agenticExclude.Matches("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-envoy-gateway/envoy-gateway") {
+		t.Fatal("agentic exclude rules should not inherit minimal addon excludes")
 	}
-	if !recommendedExclude.Matches("/registry/daemonsets/platform-envoy-gateway/platform-envoy-gateway") {
-		t.Fatal("recommended exclude rules should drop the generated Envoy data-plane DaemonSet")
+	if !agenticExclude.Matches("/registry/daemonsets/platform-envoy-gateway/platform-envoy-gateway") {
+		t.Fatal("agentic exclude rules should drop the generated Envoy data-plane DaemonSet")
 	}
 	if exclude.Matches("/registry/daemonsets/platform-envoy-gateway/platform-envoy-gateway") {
 		t.Fatal("default exclude rules should retain the Envoy data-plane DaemonSet")
@@ -274,7 +280,7 @@ func TestTransformsRemoveSecretsProviderValues(t *testing.T) {
 	}
 }
 
-func TestMinimalTransformsResetRecommendedState(t *testing.T) {
+func TestMinimalTransformsResetPlatformState(t *testing.T) {
 	t.Parallel()
 
 	helmRelease := []byte(`{"apiVersion":"helm.toolkit.fluxcd.io/v2","kind":"HelmRelease","metadata":{"name":"platform-components"},"spec":{"values":{"platform":{"components":{"apps":{"traefik":{"enabled":true}}}}}}}`)
@@ -368,10 +374,10 @@ func TestTransformsNormalizeWorkloadImages(t *testing.T) {
 	}
 }
 
-func TestRecommendedTransformsScaleEnvoyGatewayDeploymentToZero(t *testing.T) {
+func TestAgenticTransformsScaleEnvoyGatewayDeploymentToZero(t *testing.T) {
 	t.Parallel()
 	value := []byte(`{"apiVersion":"apps/v1","kind":"Deployment","spec":{"replicas":1}}`)
-	got, err := Pipeline().Transforms("recommended").TransformValue([]byte(envoyGatewayDeploymentKey), value)
+	got, err := Pipeline().Transforms("agentic").TransformValue([]byte(envoyGatewayDeploymentKey), value)
 	if err != nil {
 		t.Fatalf("TransformValue: %v", err)
 	}
@@ -396,8 +402,8 @@ func TestRecommendedTransformsScaleEnvoyGatewayDeploymentToZero(t *testing.T) {
 		TypeMeta: metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
 		Spec:     appsv1.DeploymentSpec{Replicas: &replicas},
 	}
-	if !Pipeline().Transforms("recommended").TransformObject(envoyGatewayDeploymentKey, typed) {
-		t.Fatal("recommended protobuf transform did not report a change")
+	if !Pipeline().Transforms("agentic").TransformObject(envoyGatewayDeploymentKey, typed) {
+		t.Fatal("agentic protobuf transform did not report a change")
 	}
 	if typed.Spec.Replicas == nil || *typed.Spec.Replicas != 0 {
 		t.Fatalf("protobuf Deployment replicas = %v, want 0", typed.Spec.Replicas)

@@ -2,7 +2,7 @@
 // Copyright The Podplane Authors
 // SPDX-License-Identifier: Apache-2.0
 //
-// Exclude rules applied only when generating the recommended profile. The
+// Shared platform/agentic exclusions (platform adds Sandbox exclusions separately). The
 // common root exclude rules are always applied first.
 {
   "keys": [

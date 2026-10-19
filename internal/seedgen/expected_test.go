@@ -11,25 +11,38 @@ import (
 	"github.com/netsy-dev/netsy/pkg/datafile"
 )
 
-func TestCheckExpectedRecommended(t *testing.T) {
+func TestCheckExpectedPlatformProfiles(t *testing.T) {
 	t.Parallel()
-	records := make([]*datafile.Record, 0)
-	for _, key := range expectedProfiles["recommended"].keys {
-		records = append(records, &datafile.Record{Key: []byte(key)})
-	}
-
-	if err := CheckExpected("recommended", records); err != nil {
-		t.Fatalf("CheckExpected recommended error = %v", err)
+	for _, profile := range []string{"platform", "agentic"} {
+		records := make([]*datafile.Record, 0)
+		for _, key := range expectedProfiles[profile].keys {
+			records = append(records, &datafile.Record{Key: []byte(key)})
+		}
+		if err := CheckExpected(profile, records); err != nil {
+			t.Fatal(err)
+		}
+		if profile == "platform" {
+			if err := CheckExpected("agentic", records); err == nil || !strings.Contains(err.Error(), "agent-sandbox-crds") || !strings.Contains(err.Error(), "platform-agent-sandbox/agent-sandbox") {
+				t.Fatalf("agentic should require Sandbox: %v", err)
+			}
+		}
+		// Every required record is individually guarded, including runtime policy.
+		for i, record := range records {
+			missing := append(append([]*datafile.Record{}, records[:i]...), records[i+1:]...)
+			if err := CheckExpected(profile, missing); err == nil || !strings.Contains(err.Error(), string(record.Key)) {
+				t.Fatalf("%s missing %s: %v", profile, record.Key, err)
+			}
+		}
 	}
 }
 
-func TestCheckExpectedRecommendedReportsMissing(t *testing.T) {
+func TestCheckExpectedPlatformReportsMissing(t *testing.T) {
 	t.Parallel()
-	err := CheckExpected("recommended", []*datafile.Record{
+	err := CheckExpected("platform", []*datafile.Record{
 		{Key: []byte("/registry/source.toolkit.fluxcd.io/gitrepositories/platform-components/podplane-components")},
 	})
 	if err == nil {
-		t.Fatalf("CheckExpected recommended succeeded with missing records")
+		t.Fatalf("CheckExpected platform succeeded with missing records")
 	}
 	msg := err.Error()
 	for _, want := range []string{

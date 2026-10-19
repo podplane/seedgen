@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // Include rules for the minimal seed profile. These are composed after the
-// common root include rules. Recommended inherits these rules and then adds its
-// own recommended/include.jsonc rules.
+// common root include rules. Platform inherits these rules and adds
+// platform/include.jsonc; agentic cumulatively adds agentic/include.jsonc.
 {
   "keys": [
     "/registry/source.toolkit.fluxcd.io/gitrepositories/platform-components/podplane-components",
@@ -54,8 +54,8 @@
     "/registry/mutatingadmissionpolicies/platform-",
     "/registry/mutatingadmissionpolicybindings/platform-",
 
-    // Core CRDs. Minimal profile excludes remove recommended addon CRDs that
-    // may match this broad CRD prefix when the input is a recommended cluster.
+    // Core CRDs. Minimal profile excludes remove platform and agentic addon CRDs
+    // that may match this broad CRD prefix when the input has those addons.
     "/registry/apiextensions.k8s.io/customresourcedefinitions/",
 
     // Helm release state Secrets for core platform-managed charts.

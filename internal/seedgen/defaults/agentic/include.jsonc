@@ -1,0 +1,23 @@
+// Podplane <https://podplane.dev>
+// Copyright The Podplane Authors
+// SPDX-License-Identifier: Apache-2.0
+// Agentic extends platform with Sandbox resources and reconciliation state.
+{
+  "keys": [
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/agent-sandbox-crds",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-agent-sandbox/agent-sandbox"
+  ],
+  "prefixes": [
+    "/registry/namespaces/platform-agent-sandbox",
+    "/registry/serviceaccounts/platform-agent-sandbox/",
+    "/registry/roles/platform-agent-sandbox/",
+    "/registry/rolebindings/platform-agent-sandbox/",
+    "/registry/deployments/platform-agent-sandbox/",
+    "/registry/services/specs/platform-agent-sandbox/",
+    "/registry/secrets/platform-agent-sandbox/sh.helm.release.v1.",
+    "/registry/secrets/platform-cluster/sh.helm.release.v1.platform-agent-sandbox-crds.",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-agent-sandbox-agent-sandbox",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-agent-sandbox-crds"
+  ],
+  "substrings": ["agents.x-k8s.io"]
+}
