@@ -663,16 +663,6 @@ func kubernetesProtobufValue(t *testing.T, obj runtime.Object, gv schema.GroupVe
 	return data
 }
 
-// decodeKubernetesProtobufValue decodes a Kubernetes protobuf record value into
-// the provided typed object for test assertions.
-func decodeKubernetesProtobufValue(t *testing.T, value []byte, into runtime.Object) {
-	t.Helper()
-	codecs := testKubernetesCodecs(t)
-	if _, _, err := codecs.UniversalDeserializer().Decode(value, nil, into); err != nil {
-		t.Fatalf("decode Kubernetes protobuf value: %v", err)
-	}
-}
-
 // testKubernetesCodecs returns a test-local scheme with the built-in API groups
 // covered by seed transforms.
 func testKubernetesCodecs(t *testing.T) serializer.CodecFactory {

@@ -92,7 +92,11 @@ func writeSnapshotFixture(t *testing.T, dir string, revision int64, records []*d
 	if err != nil {
 		t.Fatalf("create snapshot: %v", err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			t.Errorf("close fixture: %v", err)
+		}
+	}()
 	if err := datafile.WriteSnapshot(f, records, "fixture"); err != nil {
 		t.Fatalf("WriteSnapshot: %v", err)
 	}
@@ -110,7 +114,11 @@ func writeChunkFixture(t *testing.T, dir string, revision int64, records []*data
 	if err != nil {
 		t.Fatalf("create chunk: %v", err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			t.Errorf("close fixture: %v", err)
+		}
+	}()
 	if err := datafile.WriteChunk(f, records, "fixture"); err != nil {
 		t.Fatalf("WriteChunk: %v", err)
 	}

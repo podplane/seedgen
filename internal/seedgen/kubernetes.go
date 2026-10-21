@@ -72,7 +72,7 @@ func transformKubernetesProtobufValue(transforms pipeline.Transforms, key string
 	transforms.TransformObject(key, obj)
 	info, ok := runtime.SerializerInfoForMediaType(codecs.SupportedMediaTypes(), runtime.ContentTypeJSON)
 	if !ok {
-		return nil, fmt.Errorf("Kubernetes JSON serializer is unavailable")
+		return nil, fmt.Errorf("kubernetes JSON serializer is unavailable")
 	}
 	gv := obj.GetObjectKind().GroupVersionKind().GroupVersion()
 	if gvk != nil {

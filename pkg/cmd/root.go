@@ -71,7 +71,7 @@ suitable for use as a Podplane seed.`,
 
 // run executes the root command using activePipeline for filtering,
 // transforming, and expectation checks.
-func run(cmd *cobra.Command, opts options, activePipeline pipeline.Pipeline) error {
+func run(cmd *cobra.Command, opts options, activePipeline pipeline.Pipeline) (err error) {
 	expect, reportName, err := resolveExpectAndReportName(cmd, opts)
 	if err != nil {
 		return err
@@ -127,7 +127,11 @@ func run(cmd *cobra.Command, opts options, activePipeline pipeline.Pipeline) err
 	if err != nil {
 		return fmt.Errorf("create output %s: %w", outputPath, err)
 	}
-	defer f.Close()
+	defer func() {
+		if closeErr := f.Close(); err == nil && closeErr != nil {
+			err = fmt.Errorf("close output %s: %w", outputPath, closeErr)
+		}
+	}()
 	if err := seedgen.WritePreparedSnapshot(f, prepared, opts.leaderID); err != nil {
 		return err
 	}
@@ -222,7 +226,7 @@ func writeKeyReports(dir string, includedKeys, excludedKeys, ignoredKeys []strin
 
 // writeKeyReport writes one alphanumerically sorted key per line to path,
 // replacing any existing file.
-func writeKeyReport(path string, keys []string) error {
+func writeKeyReport(path string, keys []string) (err error) {
 	sorted := append([]string(nil), keys...)
 	sort.Strings(sorted)
 
@@ -230,7 +234,11 @@ func writeKeyReport(path string, keys []string) error {
 	if err != nil {
 		return fmt.Errorf("create key report %s: %w", path, err)
 	}
-	defer f.Close()
+	defer func() {
+		if closeErr := f.Close(); err == nil && closeErr != nil {
+			err = fmt.Errorf("close key report %s: %w", path, closeErr)
+		}
+	}()
 	for _, key := range sorted {
 		if _, err := fmt.Fprintln(f, key); err != nil {
 			return fmt.Errorf("write key report %s: %w", path, err)

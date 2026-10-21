@@ -137,7 +137,7 @@ func readSnapshotFile(path string) ([]*datafile.Record, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open snapshot %s: %w", path, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	records, err := datafile.ReadSnapshot(f)
 	if err != nil {
 		return nil, fmt.Errorf("read snapshot %s: %w", path, err)
@@ -151,7 +151,7 @@ func readChunkFile(path string) ([]*datafile.Record, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open chunk %s: %w", path, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	records, err := datafile.ReadChunk(f)
 	if err != nil {
 		return nil, fmt.Errorf("read chunk %s: %w", path, err)
