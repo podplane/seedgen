@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 
 	"github.com/podplane/seedgen/pkg/pipeline"
+	admissionv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,6 +30,10 @@ func init() {
 
 // Transforms is the built-in Podplane seed transform table.
 var Transforms = pipeline.Transforms{
+	pipeline.KeyTransform{Key: "/registry/mutatingwebhookconfigurations/envoy-ai-gateway-gateway-pod-mutator.platform-agent-router", JSONTransforms: []pipeline.JSONTransform{clearAgentRouterCABundle}, ProtobufTransforms: []pipeline.ProtobufTransform{clearAgentRouterCABundleObject}},
+	pipeline.KeyTransform{Key: "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-agent-router/agent-router", JSONTransforms: []pipeline.JSONTransform{scrubAgentRouterValues}},
+	pipeline.KeyTransform{Key: "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-sourcegateway/sourcegateway", JSONTransforms: []pipeline.JSONTransform{scrubSourceGatewayValues}},
+	pipeline.KeyTransform{Key: "/registry/secrets.podplane.dev/secretproviderbindings/platform-sourcegateway/sourcegateway", JSONTransforms: []pipeline.JSONTransform{scrubSourceGatewayBinding}},
 	pipeline.PrefixTransform{Prefix: "/registry/cert-manager.io/certificates/", APIPrefix: "cert-manager.io/", Kind: "Certificate", JSONTransforms: []pipeline.JSONTransform{resetReadyCondition}},
 	pipeline.PrefixTransform{Prefix: "/registry/cert-manager.io/issuers/", APIPrefix: "cert-manager.io/", Kind: "Issuer", JSONTransforms: []pipeline.JSONTransform{resetReadyCondition}},
 	pipeline.PrefixTransform{Prefix: "/registry/cert-manager.io/clusterissuers/", APIPrefix: "cert-manager.io/", Kind: "ClusterIssuer", JSONTransforms: []pipeline.JSONTransform{resetReadyCondition}},
@@ -42,6 +47,32 @@ var Transforms = pipeline.Transforms{
 	pipeline.KeyTransform{Key: "/registry/source.toolkit.fluxcd.io/gitrepositories/platform-components/podplane-components", JSONTransforms: []pipeline.JSONTransform{removeComponentsGitSecretRef}},
 	pipeline.KeyTransform{Key: "/registry/services/specs/default/kubernetes", JSONTransforms: []pipeline.JSONTransform{setServiceDualStack("198.18.0.1", "fdc6::1")}, ProtobufTransforms: []pipeline.ProtobufTransform{setServiceDualStackObject("198.18.0.1", "fdc6::1")}},
 	pipeline.KeyTransform{Key: "/registry/services/specs/platform-coredns/platform-coredns", JSONTransforms: []pipeline.JSONTransform{setServiceDualStack("198.19.255.254", "fdc6::ffff")}, ProtobufTransforms: []pipeline.ProtobufTransform{setServiceDualStackObject("198.19.255.254", "fdc6::ffff")}},
+}
+
+func clearAgentRouterCABundle(obj map[string]any) bool {
+	webhooks, _ := obj["webhooks"].([]any)
+	changed := false
+	for _, item := range webhooks {
+		webhook, _ := item.(map[string]any)
+		config, _ := webhook["clientConfig"].(map[string]any)
+		if _, ok := config["caBundle"]; ok {
+			delete(config, "caBundle")
+			changed = true
+		}
+	}
+	return changed
+}
+
+func clearAgentRouterCABundleObject(obj runtime.Object) bool {
+	configuration := obj.(*admissionv1.MutatingWebhookConfiguration)
+	changed := false
+	for i := range configuration.Webhooks {
+		if len(configuration.Webhooks[i].ClientConfig.CABundle) > 0 {
+			configuration.Webhooks[i].ClientConfig.CABundle = nil
+			changed = true
+		}
+	}
+	return changed
 }
 
 // resetReadyCondition marks a True Ready condition as False in a JSON object.
@@ -391,12 +422,38 @@ func removeComponentsGitSecretRef(obj map[string]any) bool {
 // removeSecretsProviderValues clears bootstrap-specific secrets provider
 // settings from the platform-components HelmRelease before seed output.
 func removeSecretsProviderValues(obj map[string]any) bool {
-	var changed bool
+	changed := scrubSourceGatewayAt(obj, []string{"spec", "values", "platform", "components", "values", "sourcegateway"})
+	changed = scrubAgentRouterAt(obj, []string{"spec", "values", "platform", "components", "values", "agent-router"}) || changed
 	path := []string{"spec", "values", "platform", "components", "values", "podplane-operator", "podplane", "operator", "config", "secrets"}
 	changed = deleteNestedKey(obj, path, "providers") || changed
 	changed = deleteNestedKey(obj, path, "defaultProvider") || changed
 	changed = deleteNestedKey(obj, []string{"spec", "values", "platform", "components", "values", "secrets-store-csi-provider-openbao", "podplane", "secrets"}, "providers") || changed
 	return changed
+}
+
+// Runtime provider selection is supplied by the target cluster, never captured.
+func scrubSourceGatewayAt(obj map[string]any, path []string) bool {
+	changed := deleteNestedKey(obj, append(path, "platform", "sourceGateway"), "providerName")
+	return deleteNestedKey(obj, append(path, "sourcegateway"), "encryptionKey") || changed
+}
+
+func scrubSourceGatewayValues(obj map[string]any) bool {
+	return scrubSourceGatewayAt(obj, []string{"spec", "values"})
+}
+
+func scrubSourceGatewayBinding(obj map[string]any) bool {
+	return deleteNestedKey(obj, []string{"spec"}, "providerName")
+}
+
+func scrubAgentRouterValues(obj map[string]any) bool {
+	return scrubAgentRouterAt(obj, []string{"spec", "values"})
+}
+
+func scrubAgentRouterAt(obj map[string]any, path []string) bool {
+	path = append(path, "ai-gateway-helm", "controller", "mcp", "sessionEncryption")
+	changed := deleteNestedKey(obj, path, "seed")
+	changed = deleteNestedKey(obj, path, "existingSecret") || changed
+	return deleteNestedKey(obj, append(path, "fallback"), "seed") || changed
 }
 
 // deleteNestedKey deletes one key from a nested JSON object and prunes empty

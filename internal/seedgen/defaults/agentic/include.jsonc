@@ -1,13 +1,43 @@
 // Podplane <https://podplane.dev>
 // Copyright The Podplane Authors
 // SPDX-License-Identifier: Apache-2.0
-// Agentic extends platform with Sandbox resources and reconciliation state.
+// Agentic extends platform with Sandbox and gateway reconciliation state.
 {
   "keys": [
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-sourcegateway/sourcegateway",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-agent-router/agent-router",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/sourcegateway-crds",
+    "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/agent-router-crds",
+    "/registry/secrets.podplane.dev/secretproviderbindings/platform-sourcegateway/sourcegateway",
+    "/registry/configmaps/platform-sourcegateway/sourcegateway",
+    "/registry/networkpolicies/platform-sourcegateway/sourcegateway-ingress",
     "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-cluster/agent-sandbox-crds",
     "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-agent-sandbox/agent-sandbox"
   ],
   "prefixes": [
+    "/registry/namespaces/platform-sourcegateway",
+    "/registry/namespaces/platform-agent-router",
+    "/registry/serviceaccounts/platform-sourcegateway/",
+    "/registry/serviceaccounts/platform-agent-router/",
+    "/registry/configmaps/platform-agent-router/",
+    "/registry/roles/platform-sourcegateway/",
+    "/registry/roles/platform-agent-router/",
+    "/registry/rolebindings/platform-sourcegateway/",
+    "/registry/rolebindings/platform-agent-router/",
+    "/registry/deployments/platform-sourcegateway/",
+    "/registry/deployments/platform-agent-router/",
+    "/registry/services/specs/platform-sourcegateway/",
+    "/registry/services/specs/platform-agent-router/",
+    "/registry/apiextensions.k8s.io/customresourcedefinitions/backendsecuritypolicies.aigateway.envoyproxy.io",
+    "/registry/apiextensions.k8s.io/customresourcedefinitions/aigatewayroutes.aigateway.envoyproxy.io",
+    "/registry/apiextensions.k8s.io/customresourcedefinitions/aiservicebackends.aigateway.envoyproxy.io",
+    "/registry/apiextensions.k8s.io/customresourcedefinitions/gatewayconfigs.aigateway.envoyproxy.io",
+    "/registry/apiextensions.k8s.io/customresourcedefinitions/mcproutes.aigateway.envoyproxy.io",
+    "/registry/apiextensions.k8s.io/customresourcedefinitions/quotapolicies.aigateway.envoyproxy.io",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-sourcegateway-sourcegateway",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-agent-router-agent-router",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-sourcegateway-crds",
+    "/registry/source.toolkit.fluxcd.io/helmcharts/platform-components/platform-cluster-agent-router-crds",
     "/registry/namespaces/platform-agent-sandbox",
     "/registry/serviceaccounts/platform-agent-sandbox/",
     "/registry/roles/platform-agent-sandbox/",

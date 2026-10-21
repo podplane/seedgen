@@ -17,22 +17,25 @@ const envoyGatewayDeploymentKey = "/registry/deployments/platform-envoy-gateway/
 
 // AgenticTransforms adds shared platform bootstrap behavior.
 var AgenticTransforms = append(append(pipeline.Transforms{}, Transforms...),
+	pipeline.KeyTransform{Key: "/registry/deployments/platform-sourcegateway/sourcegateway", JSONTransforms: []pipeline.JSONTransform{scaleDeploymentToZero}, ProtobufTransforms: []pipeline.ProtobufTransform{scaleDeploymentToZeroObject}},
+	pipeline.KeyTransform{Key: "/registry/deployments/platform-agent-router/agent-router", JSONTransforms: []pipeline.JSONTransform{scaleDeploymentToZero}, ProtobufTransforms: []pipeline.ProtobufTransform{scaleDeploymentToZeroObject}},
 	pipeline.KeyTransform{Key: envoyGatewayDeploymentKey, JSONTransforms: []pipeline.JSONTransform{scaleDeploymentToZero}, ProtobufTransforms: []pipeline.ProtobufTransform{scaleDeploymentToZeroObject}},
 )
 
-// PlatformTransforms also removes Sandbox reconciliation and aggregated permissions.
+// PlatformTransforms also removes agentic reconciliation and aggregated permissions.
 var PlatformTransforms = platformTransforms()
 
 func platformTransforms() pipeline.Transforms {
 	out := append(pipeline.Transforms{}, AgenticTransforms...)
-	out = append(out, pipeline.KeyTransform{Key: "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-components/platform-components", JSONTransforms: []pipeline.JSONTransform{removeSandboxValues}})
+	out = append(out, pipeline.KeyTransform{Key: "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-components/platform-components", JSONTransforms: []pipeline.JSONTransform{removeAgenticValues}})
+	out = append(out, pipeline.KeyTransform{Key: "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-envoy-gateway/envoy-gateway", JSONTransforms: []pipeline.JSONTransform{removeAgentRouterExtension}})
 	for _, name := range []string{"admin", "edit", "view"} {
-		out = append(out, pipeline.KeyTransform{Key: "/registry/clusterroles/" + name, JSONTransforms: []pipeline.JSONTransform{removeSandboxRules}, ProtobufTransforms: []pipeline.ProtobufTransform{removeSandboxRulesObject}})
+		out = append(out, pipeline.KeyTransform{Key: "/registry/clusterroles/" + name, JSONTransforms: []pipeline.JSONTransform{removeAgenticRules}, ProtobufTransforms: []pipeline.ProtobufTransform{removeAgenticRulesObject}})
 	}
 	return out
 }
 
-func removeSandboxValues(obj map[string]any) bool {
+func removeAgenticValues(obj map[string]any) bool {
 	current := obj
 	for _, key := range []string{"spec", "values", "platform", "components"} {
 		next, ok := current[key].(map[string]any)
@@ -44,17 +47,41 @@ func removeSandboxValues(obj map[string]any) bool {
 	changed := false
 	for _, section := range []string{"apps", "crds", "values"} {
 		entries, _ := current[section].(map[string]any)
-		for _, name := range []string{"agent-sandbox", "agent-sandbox-crds"} {
+		for _, name := range []string{"agent-sandbox", "agent-sandbox-crds", "sourcegateway", "sourcegateway-crds", "agent-router", "agent-router-crds"} {
 			if _, ok := entries[name]; ok {
 				delete(entries, name)
 				changed = true
 			}
 		}
 	}
-	return changed
+	values, _ := current["values"].(map[string]any)
+	envoy, _ := values["envoy-gateway"].(map[string]any)
+	return removeAgentRouterConfig(envoy) || changed
 }
 
-func removeSandboxRules(obj map[string]any) bool {
+// Agent Router extends the shared gateway only in the agentic profile.
+func removeAgentRouterExtension(obj map[string]any) bool {
+	spec, _ := obj["spec"].(map[string]any)
+	values, _ := spec["values"].(map[string]any)
+	return removeAgentRouterConfig(values)
+}
+
+func removeAgentRouterConfig(values map[string]any) bool {
+	// Preserve unrelated extension managers supplied by users.
+	config, _ := values["gateway-helm"].(map[string]any)
+	config, _ = config["config"].(map[string]any)
+	config, _ = config["envoyGateway"].(map[string]any)
+	extension, _ := config["extensionManager"].(map[string]any)
+	service, _ := extension["service"].(map[string]any)
+	fqdn, _ := service["fqdn"].(map[string]any)
+	if fqdn["hostname"] != "agent-router.platform-agent-router.svc.cluster.local" {
+		return false
+	}
+	delete(config, "extensionManager")
+	return true
+}
+
+func removeAgenticRules(obj map[string]any) bool {
 	rules, ok := obj["rules"].([]any)
 	if !ok {
 		return false
@@ -65,7 +92,7 @@ func removeSandboxRules(obj map[string]any) bool {
 		groups, _ := rule["apiGroups"].([]any)
 		remove := false
 		for _, group := range groups {
-			if name, ok := group.(string); ok && sandboxAPIGroup(name) {
+			if name, ok := group.(string); ok && agenticAPIGroup(name) {
 				remove = true
 			}
 		}
@@ -80,7 +107,7 @@ func removeSandboxRules(obj map[string]any) bool {
 	return true
 }
 
-func removeSandboxRulesObject(obj runtime.Object) bool {
+func removeAgenticRulesObject(obj runtime.Object) bool {
 	role, ok := obj.(*rbacv1.ClusterRole)
 	if !ok {
 		return false
@@ -89,7 +116,7 @@ func removeSandboxRulesObject(obj runtime.Object) bool {
 	for _, rule := range role.Rules {
 		remove := false
 		for _, group := range rule.APIGroups {
-			if sandboxAPIGroup(group) {
+			if agenticAPIGroup(group) {
 				remove = true
 			}
 		}
@@ -104,8 +131,8 @@ func removeSandboxRulesObject(obj runtime.Object) bool {
 	return true
 }
 
-func sandboxAPIGroup(group string) bool {
-	return group == "agents.x-k8s.io" || strings.HasSuffix(group, ".agents.x-k8s.io")
+func agenticAPIGroup(group string) bool {
+	return group == "sourcegateway.dev" || group == "aigateway.envoyproxy.io" || group == "agents.x-k8s.io" || strings.HasSuffix(group, ".agents.x-k8s.io")
 }
 
 // scaleDeploymentToZero prevents a seeded Deployment from creating Pods before

@@ -3,5 +3,5 @@
 // SPDX-License-Identifier: Apache-2.0
 // Platform-only exclusions override broad common CRD, RBAC and namespace includes.
 {
-  "substrings": ["agent-sandbox", "agents.x-k8s.io"]
+  "substrings": ["agent-sandbox", "agents.x-k8s.io", "sourcegateway", "agent-router", "ai-gateway", "aigateway.envoyproxy.io"]
 }

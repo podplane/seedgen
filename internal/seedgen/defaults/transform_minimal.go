@@ -23,6 +23,8 @@ var MinimalTransforms = append(append(pipeline.Transforms{}, Transforms...),
 // minimalAddonRBACAPIGroups lists addon API groups whose aggregated
 // RBAC rules should be removed from default ClusterRoles in minimal seeds.
 var minimalAddonRBACAPIGroups = map[string]struct{}{
+	"sourcegateway.dev":          {},
+	"aigateway.envoyproxy.io":    {},
 	"acme.cert-manager.io":       {},
 	"cert-manager.io":            {},
 	"secrets-api.podplane.dev":   {},

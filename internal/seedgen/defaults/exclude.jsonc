@@ -15,6 +15,19 @@
     "/registry/secrets/platform-secrets-store-csi-provider-openbao/openbao-csi-provider-hmac-key"
   ],
   "prefixes": [
+    // The platform Envoy API substring include also matches this API group.
+    // Only its explicitly included CRDs belong in the template, not user APIs.
+    "/registry/aigateway.envoyproxy.io/",
+    // Opaque Helm storage can embed keys/CA material in values or manifests.
+    // Flux recreates releases from the sanitized HelmRelease objects.
+    "/registry/secrets/platform-components/sh.helm.release.v1.platform-components.",
+    "/registry/secrets/platform-envoy-gateway/sh.helm.release.v1.",
+    "/registry/secrets/platform-sourcegateway/",
+    "/registry/secrets/platform-agent-router/",
+    "/registry/secrets/platform-cluster/sh.helm.release.v1.platform-sourcegateway-crds.",
+    "/registry/secrets/platform-cluster/sh.helm.release.v1.platform-agent-router-crds.",
+    "/registry/secrets-store.csi.x-k8s.io/secretproviderclasses/platform-sourcegateway/",
+    "/registry/secrets-api.podplane.dev/secretproviderkeyspaces/platform-sourcegateway/",
     // Kubernetes runtime / per-node noise
     "/registry/events/",
     "/registry/leases/",

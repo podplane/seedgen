@@ -87,14 +87,14 @@ live at the defaults root, while profile rules live under `minimal/`, `platform/
 - `minimal` uses common + minimal include rules, and common + minimal exclude
   rules.
 - `platform` is the shared platform stack (Envoy Gateway, Podplane operator, Secrets
-  Store CSI and registry), without Agent Sandbox. It uses common + minimal +
-  platform includes, common + agentic shared excludes + platform-only Sandbox excludes.
-- `agentic` is platform + Agent Sandbox. It adds agentic includes and uses only
-  common + agentic shared excludes, never platform's Sandbox exclusions.
+  Store CSI and registry), without agentic addons. It uses common + minimal +
+  platform includes, common + agentic shared excludes + platform-only excludes.
+- `agentic` is platform + Agent Sandbox, Source Gateway and Agent Router. It adds
+  agentic includes and uses only common + agentic shared excludes.
 - Neither platform seed inherits minimal excludes. Both scale the Envoy
-  Gateway controller Deployment to zero for bootstrap. Platform removes Sandbox
+  Gateway controller Deployment to zero for bootstrap. Platform removes agentic
   app/CRD/value overrides from the parent platform-components HelmRelease
-  (chart defaults disable Sandbox) and Sandbox permissions from aggregated
+  (chart defaults disable these addons) and agentic permissions from aggregated
   admin/edit/view roles, retaining other platform overrides.
 
 Minimal also has a few minimal-only transforms for records shared with
