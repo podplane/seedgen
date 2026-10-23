@@ -132,12 +132,16 @@ exclude rule.
 
 Running seedgen does not generate deterministic output between different clusters, because resource UIDs will be different. However, the seedgen tool does normalize timestamps. In order to minimise a git diff, you may want to revert/reset uid-only JSON record changes...
 
+`git diff -G` matches changed line content without its leading `+` or `-`, so
+the pattern below matches any changed line other than a `"uid"` field. A record
+is reset only if every changed line is a `"uid"` field.
+
 Preview:
 
 ```
 comm -23 \
   <(git diff --name-only --diff-filter=M -- records | sort) \
-  <(git diff --name-only --diff-filter=M -G'^[+-][[:space:]]+"[^u]|^[+-][[:space:]]+"u[^i]|^[+-][[:space:]]+"ui[^d]|^[+-][[:space:]]+"uid[^"]' -- records | sort)
+  <(git diff --name-only --diff-filter=M -G'^[[:space:]]*([^[:space:]"]|"([^u]|u[^i]|ui[^d]|uid[^"]))' -- records | sort)
 ```
 
 Reset:
@@ -145,7 +149,7 @@ Reset:
 ```
 comm -23 \
   <(git diff --name-only --diff-filter=M -- records | sort) \
-  <(git diff --name-only --diff-filter=M -G'^[+-][[:space:]]+"[^u]|^[+-][[:space:]]+"u[^i]|^[+-][[:space:]]+"ui[^d]|^[+-][[:space:]]+"uid[^"]' -- records | sort) |
+  <(git diff --name-only --diff-filter=M -G'^[[:space:]]*([^[:space:]"]|"([^u]|u[^i]|ui[^d]|uid[^"]))' -- records | sort) |
 xargs git checkout --
 ```
 

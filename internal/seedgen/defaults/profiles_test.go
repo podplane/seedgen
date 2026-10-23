@@ -140,3 +140,51 @@ func TestPlatformProfiles(t *testing.T) {
 		}
 	}
 }
+
+// TestProfilesExcludeLocalStorage checks no seed profile keeps the cluster-scoped
+// leftovers of the local CSI storage stack, while keeping shared records that
+// sit under the same broad include prefixes.
+func TestProfilesExcludeLocalStorage(t *testing.T) {
+	p := Pipeline()
+	excluded := []string{
+		"/registry/apiextensions.k8s.io/customresourcedefinitions/lvmvolumes.local.openebs.io",
+		"/registry/apiregistration.k8s.io/apiservices/v1alpha1.local.openebs.io",
+		"/registry/apiextensions.k8s.io/customresourcedefinitions/volumesnapshots.snapshot.storage.k8s.io",
+		"/registry/apiextensions.k8s.io/customresourcedefinitions/volumegroupsnapshots.groupsnapshot.storage.k8s.io",
+		"/registry/apiregistration.k8s.io/apiservices/v1beta2.groupsnapshot.storage.k8s.io",
+		"/registry/clusterroles/openebs-lvm-provisioner-role",
+		"/registry/clusterrolebindings/openebs-lvm-provisioner-binding",
+		"/registry/csidrivers/local.csi.openebs.io",
+		"/registry/priorityclasses/platform-csi-openebs-lvm-lvm-localpv-csi-node-critical",
+		"/registry/storageclasses/platform-openebs-lvm-default",
+	}
+	kept := []string{
+		"/registry/apiextensions.k8s.io/customresourcedefinitions/xbackends.gateway.networking.x-k8s.io",
+		"/registry/priorityclasses/system-node-critical",
+	}
+	for _, profile := range []string{"minimal", "platform", "agentic"} {
+		t.Run(profile, func(t *testing.T) {
+			include, err := p.IncludeRules(profile)
+			if err != nil {
+				t.Fatal(err)
+			}
+			exclude, err := p.ExcludeRules(profile)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, key := range excluded {
+				if !include.Matches(key) {
+					t.Errorf("%s no longer matches an include rule; drop it from this test", key)
+				}
+				if !exclude.Matches(key) {
+					t.Errorf("%s kept", key)
+				}
+			}
+			for _, key := range kept {
+				if !include.Matches(key) || exclude.Matches(key) {
+					t.Errorf("%s dropped", key)
+				}
+			}
+		})
+	}
+}

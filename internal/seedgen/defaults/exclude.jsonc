@@ -49,6 +49,14 @@
   ],
   "substrings": [
     // kube-system root CA configmap published per-namespace by the apiserver
-    "/kube-root-ca.crt"
+    "/kube-root-ca.crt",
+    // Provider-specific storage. Podplane enables the CSI driver for each
+    // cluster's provider when it prepares a seed (OpenEBS LVM and the snapshot
+    // CRDs it needs on local clusters), so a seed captured from a local VM must
+    // not carry its cluster-scoped leftovers: CRDs, APIServices, RBAC,
+    // CSIDriver, PriorityClasses and a default StorageClass that would compete
+    // with a cloud provider's default.
+    "openebs",
+    "snapshot.storage.k8s.io"
   ]
 }
