@@ -89,6 +89,7 @@ func init() {
 		"/registry/namespaces/platform-sourcegateway",
 		"/registry/namespaces/platform-agent-router",
 		"/registry/deployments/platform-agent-router/agent-router",
+		"/registry/deployments/platform-agent-router/envoy-gateway",
 		"/registry/apiextensions.k8s.io/customresourcedefinitions/aigatewayroutes.aigateway.envoyproxy.io",
 		"/registry/apiextensions.k8s.io/customresourcedefinitions/aiservicebackends.aigateway.envoyproxy.io",
 		"/registry/apiextensions.k8s.io/customresourcedefinitions/backendsecuritypolicies.aigateway.envoyproxy.io",

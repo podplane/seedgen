@@ -15,10 +15,15 @@ import (
 
 const envoyGatewayDeploymentKey = "/registry/deployments/platform-envoy-gateway/envoy-gateway"
 
+// agentRouterEnvoyGatewayDeploymentKey is Agent Router's dedicated Envoy
+// Gateway controller, which carries the Agent Router extension.
+const agentRouterEnvoyGatewayDeploymentKey = "/registry/deployments/platform-agent-router/envoy-gateway"
+
 // AgenticTransforms adds shared platform bootstrap behavior.
 var AgenticTransforms = append(append(pipeline.Transforms{}, Transforms...),
 	pipeline.KeyTransform{Key: "/registry/deployments/platform-sourcegateway/sourcegateway", JSONTransforms: []pipeline.JSONTransform{scaleDeploymentToZero}, ProtobufTransforms: []pipeline.ProtobufTransform{scaleDeploymentToZeroObject}},
 	pipeline.KeyTransform{Key: "/registry/deployments/platform-agent-router/agent-router", JSONTransforms: []pipeline.JSONTransform{scaleDeploymentToZero}, ProtobufTransforms: []pipeline.ProtobufTransform{scaleDeploymentToZeroObject}},
+	pipeline.KeyTransform{Key: agentRouterEnvoyGatewayDeploymentKey, JSONTransforms: []pipeline.JSONTransform{scaleDeploymentToZero}, ProtobufTransforms: []pipeline.ProtobufTransform{scaleDeploymentToZeroObject}},
 	pipeline.KeyTransform{Key: envoyGatewayDeploymentKey, JSONTransforms: []pipeline.JSONTransform{scaleDeploymentToZero}, ProtobufTransforms: []pipeline.ProtobufTransform{scaleDeploymentToZeroObject}},
 )
 
@@ -28,7 +33,6 @@ var PlatformTransforms = platformTransforms()
 func platformTransforms() pipeline.Transforms {
 	out := append(pipeline.Transforms{}, AgenticTransforms...)
 	out = append(out, pipeline.KeyTransform{Key: "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-components/platform-components", JSONTransforms: []pipeline.JSONTransform{removeAgenticValues}})
-	out = append(out, pipeline.KeyTransform{Key: "/registry/helm.toolkit.fluxcd.io/helmreleases/platform-envoy-gateway/envoy-gateway", JSONTransforms: []pipeline.JSONTransform{removeAgentRouterExtension}})
 	for _, name := range []string{"admin", "edit", "view"} {
 		out = append(out, pipeline.KeyTransform{Key: "/registry/clusterroles/" + name, JSONTransforms: []pipeline.JSONTransform{removeAgenticRules}, ProtobufTransforms: []pipeline.ProtobufTransform{removeAgenticRulesObject}})
 	}
@@ -54,31 +58,7 @@ func removeAgenticValues(obj map[string]any) bool {
 			}
 		}
 	}
-	values, _ := current["values"].(map[string]any)
-	envoy, _ := values["envoy-gateway"].(map[string]any)
-	return removeAgentRouterConfig(envoy) || changed
-}
-
-// Agent Router extends the shared gateway only in the agentic profile.
-func removeAgentRouterExtension(obj map[string]any) bool {
-	spec, _ := obj["spec"].(map[string]any)
-	values, _ := spec["values"].(map[string]any)
-	return removeAgentRouterConfig(values)
-}
-
-func removeAgentRouterConfig(values map[string]any) bool {
-	// Preserve unrelated extension managers supplied by users.
-	config, _ := values["gateway-helm"].(map[string]any)
-	config, _ = config["config"].(map[string]any)
-	config, _ = config["envoyGateway"].(map[string]any)
-	extension, _ := config["extensionManager"].(map[string]any)
-	service, _ := extension["service"].(map[string]any)
-	fqdn, _ := service["fqdn"].(map[string]any)
-	if fqdn["hostname"] != "agent-router.platform-agent-router.svc.cluster.local" {
-		return false
-	}
-	delete(config, "extensionManager")
-	return true
+	return changed
 }
 
 func removeAgenticRules(obj map[string]any) bool {

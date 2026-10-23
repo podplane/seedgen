@@ -136,7 +136,7 @@ func TestGatewayProfiles(t *testing.T) {
 			t.Fatal(string(got))
 		}
 	}
-	for _, deploymentKey := range []string{"/registry/deployments/platform-sourcegateway/sourcegateway", "/registry/deployments/platform-agent-router/agent-router"} {
+	for _, deploymentKey := range []string{"/registry/deployments/platform-sourcegateway/sourcegateway", "/registry/deployments/platform-agent-router/agent-router", agentRouterEnvoyGatewayDeploymentKey} {
 		replicas := int32(1)
 		deployment := &appsv1.Deployment{Spec: appsv1.DeploymentSpec{Replicas: &replicas}}
 		p.Transforms("agentic").TransformObject(deploymentKey, deployment)
@@ -175,20 +175,6 @@ func TestAgentRouterSeedValues(t *testing.T) {
 		}
 		if len(out) != 1 || out[0].Revision != 1 || strings.Contains(string(out[0].Value), "captured-") || !strings.Contains(string(out[0].Value), "90000") || !strings.Contains(string(out[0].Value), "100000") {
 			t.Fatalf("session seed leaked or non-secret configuration lost: %#v", out)
-		}
-	}
-	for _, profile := range []string{"platform", "agentic"} {
-		for _, host := range []string{"agent-router.platform-agent-router.svc.cluster.local", "other-extension.example"} {
-			input := `{"spec":{"values":{"gateway-helm":{"config":{"envoyGateway":{"extensionApis":{"enableSDSSecretRef":true},"extensionManager":{"service":{"fqdn":{"hostname":"` + host + `"}}}}}}}}}`
-			key := []byte("/registry/helm.toolkit.fluxcd.io/helmreleases/platform-envoy-gateway/envoy-gateway")
-			out, err := p.Transforms(profile).TransformValue(key, []byte(input))
-			if err != nil {
-				t.Fatal(err)
-			}
-			wantExtension := profile == "agentic" || host == "other-extension.example"
-			if strings.Contains(string(out), "extensionManager") != wantExtension || !strings.Contains(string(out), "enableSDSSecretRef") {
-				t.Fatalf("%s extension cleanup: %s", profile, out)
-			}
 		}
 	}
 }
